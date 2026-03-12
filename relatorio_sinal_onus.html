@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canãa Telecom — Monitoramento de Sinal ONU</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Canãa Telecom palette */
+  --brand:        #0d2fa3;
+  --brand-dark:   #081d6e;
+  --brand-deep:   #050f3d;
+  --brand-light:  #1a45c4;
+  --brand-glow:   rgba(13,47,163,.35);
+
+  --bg:           #04081a;
+  --surface:      #080f2e;
+  --surface2:     #0c1640;
+  --surface3:     #0f1d52;
+  --border:       rgba(255,255,255,.08);
+  --border-brand: rgba(13,47,163,.5);
+
+  --text:         #f0f2ff;
+  --text-soft:    #b0b8e0;
+  --text-dim:     #5a6490;
+
+  --warn:         #f5a623;
+  --warn-bg:      rgba(245,166,35,.07);
+  --warn-glow:    rgba(245,166,35,.2);
+
+  --crit:         #ff4757;
+  --crit-bg:      rgba(255,71,87,.07);
+  --crit-glow:    rgba(255,71,87,.2);
+
+  --ok:           #2ed573;
+  --ok-bg:        rgba(46,213,115,.06);
+  --ok-glow:      rgba(46,213,115,.2);
+
+  --track:        rgba(255,255,255,.06);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(13,47,163,.25) 0%, transparent 70%);
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+═══════════════════════════════════════ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--brand-deep) 0%, var(--brand-dark) 100%);
+  border-bottom: 1px solid var(--border-brand);
+  position: sticky;
+  top: 0;
+  z-index: 400;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.05) inset;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.15), 0 4px 12px rgba(0,0,0,.4);
+}
+
+.header-text {}
+.header-company {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .3px;
+  line-height: 1;
+}
+.header-subtitle {
+  font-size: 10px;
+  color: rgba(255,255,255,.5);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.header-tag {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: rgba(255,255,255,.7);
+  font-family: 'JetBrains Mono', monospace;
+}
+.header-tag .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.5; transform:scale(.8); }
+}
+
+/* ═══════════════════════════════════════
+   STATS DASHBOARD
+═══════════════════════════════════════ */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) auto;
+  gap: 1px;
+  background: var(--border-brand);
+  border-bottom: 1px solid var(--border-brand);
+}
+
+.stat-card {
+  background: var(--surface);
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.stat-card.total::before  { background: linear-gradient(90deg, var(--brand), var(--brand-light)); }
+.stat-card.warns::before  { background: linear-gradient(90deg, var(--warn), #ffcc02); }
+.stat-card.crits::before  { background: linear-gradient(90deg, var(--crit), #ff6b81); }
+.stat-card.oks::before    { background: linear-gradient(90deg, var(--ok),  #7bed9f); }
+
+.stat-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+}
+.stat-card.total .stat-num { color: #7b9fff; }
+.stat-card.warns .stat-num { color: var(--warn); }
+.stat-card.crits .stat-num { color: var(--crit); }
+.stat-card.oks   .stat-num { color: var(--ok); }
+
+.stat-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.stat-icon {
+  position: absolute;
+  right: 20px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 28px;
+  opacity: .08;
+}
+
+/* worst signal card */
+.worst-card {
+  background: linear-gradient(135deg, #1a0515, #2d0820);
+  padding: 18px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  border-left: 1px solid var(--border-brand);
+  min-width: 200px;
+  position: relative;
+  overflow: hidden;
+}
+.worst-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--crit), #ff6b81);
+}
+.worst-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(255,71,87,.6);
+}
+.worst-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--crit);
+  line-height: 1;
+  text-shadow: 0 0 20px var(--crit-glow);
+}
+.worst-unit { font-size: 13px; color: var(--text-dim); margin-left: 3px; }
+.worst-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════
+   LEGEND BAR
+═══════════════════════════════════════ */
+.legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 8px 28px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-soft);
+}
+.leg-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+.leg-pill.onu { background: rgba(255,71,87,.15); color: var(--crit); border:1px solid rgba(255,71,87,.25); }
+.leg-pill.olt { background: rgba(100,160,255,.12); color: #64a0ff; border:1px solid rgba(100,160,255,.25); }
+
+/* ═══════════════════════════════════════
+   FILTERS
+═══════════════════════════════════════ */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 28px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.filter-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+select, input[type=text] {
+  background: var(--surface3);
+  border: 1px solid rgba(255,255,255,.1);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color .2s;
+}
+select:focus, input[type=text]:focus {
+  border-color: var(--brand-light);
+  box-shadow: 0 0 0 3px rgba(13,47,163,.2);
+}
+input[type=text] { min-width: 220px; }
+input[type=text]::placeholder { color: var(--text-dim); }
+
+.filter-divider { width:1px; height:20px; background:var(--border); flex-shrink:0; }
+
+.rec-count {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--surface3);
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════
+   TABLE
+═══════════════════════════════════════ */
+.table-wrap {
+  overflow: auto;
+  height: calc(100vh - 210px);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+thead th {
+  background: var(--surface);
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-brand);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color .15s;
+}
+thead th:hover { color: var(--text-soft); }
+thead th.sorted { color: #7b9fff; }
+.si { margin-left: 4px; opacity: .4; font-size: 8px; }
+thead th.sorted .si { opacity: 1; color: #7b9fff; }
+
+tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  transition: background .1s;
+}
+tbody tr:hover { background: rgba(255,255,255,.025); }
+
+/* row variants */
+tbody tr.warn-row {
+  background: var(--warn-bg);
+  border-left: 3px solid rgba(245,166,35,.5);
+}
+tbody tr.warn-row:hover { background: rgba(245,166,35,.11); }
+tbody tr.crit-row {
+  background: var(--crit-bg);
+  border-left: 3px solid rgba(255,71,87,.5);
+}
+tbody tr.crit-row:hover { background: rgba(255,71,87,.12); }
+tbody tr.ok-row {
+  background: var(--ok-bg);
+  border-left: 3px solid rgba(46,213,115,.4);
+  opacity: .65;
+}
+tbody tr.ok-row:hover { opacity: 1; background: rgba(46,213,115,.1); }
+
+td { padding: 10px 14px; vertical-align: middle; white-space: nowrap; }
+
+/* rank */
+.rank-cell {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 36px;
+}
+
+/* signal cell */
+.sig-wrap { min-width: 130px; }
+.sig-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+.sig-num.crit { color: var(--crit); text-shadow: 0 0 10px var(--crit-glow); }
+.sig-num.warn { color: var(--warn); text-shadow: 0 0 10px var(--warn-glow); }
+.sig-num.olt  { color: #64a0ff; }
+.sig-num.na   { color: var(--text-dim); font-size: 11px; font-style: italic; }
+.ok-row .sig-num { color: var(--text-dim) !important; text-shadow: none !important; }
+
+.bar-track {
+  height: 3px;
+  background: var(--track);
+  border-radius: 2px;
+  margin-top: 5px;
+  width: 80px;
+  overflow: hidden;
+}
+.bar-fill { height: 3px; border-radius: 2px; transition: width .4s ease; }
+
+/* badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+.badge::before { content:''; width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.badge.crit { background:rgba(255,71,87,.15); color:var(--crit); border:1px solid rgba(255,71,87,.3); }
+.badge.crit::before { background:var(--crit); box-shadow:0 0 5px var(--crit); }
+.badge.warn { background:rgba(245,166,35,.12); color:var(--warn); border:1px solid rgba(245,166,35,.25); }
+.badge.warn::before { background:var(--warn); box-shadow:0 0 5px var(--warn); }
+.badge.ok   { background:rgba(46,213,115,.12); color:var(--ok);   border:1px solid rgba(46,213,115,.25); }
+.badge.ok::before   { background:var(--ok);   box-shadow:0 0 5px var(--ok); }
+
+/* name */
+.name-cell {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+/* buttons */
+.btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.btn-resolve {
+  background: rgba(46,213,115,.12);
+  color: var(--ok);
+  border: 1px solid rgba(46,213,115,.3);
+}
+.btn-resolve:hover { background: rgba(46,213,115,.25); box-shadow: 0 0 12px var(--ok-glow); }
+.btn-unresolve {
+  background: rgba(255,255,255,.05);
+  color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,.1);
+}
+.btn-unresolve:hover { background: rgba(255,255,255,.1); color: var(--text); }
+
+.no-results {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.no-results span { display:block; font-size:32px; margin-bottom:12px; }
+
+/* scrollbar */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand); }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-brand">
+    <img src="data:image/png;base64,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" class="header-logo" alt="Canãa Telecom">
+    <div class="header-text">
+      <div class="header-company">Canãa Telecom</div>
+      <div class="header-subtitle">Monitoramento de Sinal ONU</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-tag">
+      <span class="dot"></span>
+      Atualizado em 12/03/2026 às 21:58
+    </div>
+    <div class="header-tag">
+      📡 SmartOLT
+    </div>
+  </div>
+</header>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div class="dashboard">
+  <div class="stat-card total">
+    <div class="stat-num">446</div>
+    <div class="stat-lbl">Total de ONUs</div>
+    <div class="stat-icon">📶</div>
+  </div>
+  <div class="stat-card warns">
+    <div class="stat-num" id="s-warn">331</div>
+    <div class="stat-lbl">⚠ Warning</div>
+    <div class="stat-icon">⚠</div>
+  </div>
+  <div class="stat-card crits">
+    <div class="stat-num" id="s-crit">115</div>
+    <div class="stat-lbl">🔴 Critical</div>
+    <div class="stat-icon">🔴</div>
+  </div>
+  <div class="stat-card oks">
+    <div class="stat-num" id="s-ok">0</div>
+    <div class="stat-lbl">✓ Resolvidos</div>
+    <div class="stat-icon">✓</div>
+  </div>
+  <div class="worst-card">
+    <div class="worst-label">Pior Sinal ONU Rx</div>
+    <div class="worst-val">-40.0<span class="worst-unit">dBm</span></div>
+    <div class="worst-sub">TAGUATINGA-N1 · id751</div>
+  </div>
+</div>
+
+<!-- ═══ LEGEND ═══ -->
+<div class="legend-bar">
+  <span class="leg-item">Sinais:</span>
+  <span class="leg-pill onu">● ONU Rx — 1490 nm</span>
+  <span class="leg-pill olt">● OLT Rx — 1310 nm</span>
+  <span style="margin-left:auto; font-size:10px; color:var(--text-dim)">
+    Ordenação padrão: pior sinal ONU Rx primeiro
+  </span>
+</div>
+
+<!-- ═══ FILTERS ═══ -->
+<div class="filters">
+  <div class="filter-group">
+    <span class="filter-label">OLT</span>
+    <select id="f-olt">
+      <option value="">Todas as OLTs</option>
+      <option value="AGUAS CLARAS-1">AGUAS CLARAS-1</option><option value="AGUAS CLARAS-2">AGUAS CLARAS-2</option><option value="AGUAS CLARAS-3">AGUAS CLARAS-3</option><option value="ARNIQUEIRAS">ARNIQUEIRAS</option><option value="CEILANDIA">CEILANDIA</option><option value="SIA">SIA</option><option value="SUDOESTE">SUDOESTE</option><option value="TAGUATINGA-N1">TAGUATINGA-N1</option><option value="TAGUATINGA-N2">TAGUATINGA-N2</option><option value="VICENTE PIRES">VICENTE PIRES</option>
+    </select>
+  </div>
+  <div class="filter-divider"></div>
+  <div class="filter-group">
+    <span class="filter-label">Status</span>
+    <select id="f-status">
+      <option value="">Todos</option>
+      <option value="Critical">🔴 Critical</option>
+      <option value="Warning">⚠ Warning</option>
+      <option value="Resolvido">✓ Resolvido</option>
+    </select>
+  </div>
+  <div class="filter-divider"></div>
+  <div class="filter-group">
+    <span class="filter-label">Buscar</span>
+    <input type="text" id="f-search" placeholder="🔍  Nome, ONU, MAC...">
+  </div>
+  <span class="rec-count" id="rec-count">— registros</span>
+</div>
+
+<!-- ═══ TABLE ═══ -->
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th class="sorted" data-col="sig1490" data-dir="asc">ONU Rx 1490 nm<span class="si">▲</span></th>
+      <th data-col="sig1310">OLT Rx 1310 nm<span class="si">⇅</span></th>
+      <th>Status</th>
+      <th data-col="name">Nome<span class="si">⇅</span></th>
+      <th data-col="olt">OLT<span class="si">⇅</span></th>
+      <th>ONU / SN</th>
+      <th>Região</th>
+      <th>MAC</th>
+      <th>VLAN</th>
+      <th>Tipo</th>
+      <th>Ação</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+const RAW = [{"name": "id33557", "olt": "AGUAS CLARAS-1", "onu": "VSOL006B86D1", "zone": "CANAA", "mac": "VSOL006B86D1", "vlan": "300", "type": "ZTE-F621", "status": "Warning", "sig1490": -29.202, "sig1310": -30.916}, {"name": "cliente21732", "olt": "AGUAS CLARAS-1", "onu": "MONU0065F1A1", "zone": "CANAA", "mac": "MONU0065F1A1", "vlan": "300", "type": "ZTE-F621", "status": "Warning", "sig1490": -28.862, "sig1310": -31.489}, {"name": "cliente13169", "olt": "AGUAS CLARAS-1", "onu": "DD32E69D191A", "zone": "CANAA", "mac": "DD32E69D191A", "vlan": "300", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.952, "sig1310": -30.292}, {"name": "id33596", "olt": "AGUAS CLARAS-1", "onu": "NV21B2B1F724", "zone": "CANAA", "mac": "NV21B2B1F724", "vlan": "300", "type": "ZTE-F621", "status": "Warning", "sig1490": -27.96, "sig1310": -30.682}, {"name": "cliente21191", "olt": "AGUAS CLARAS-1", "onu": "SUMCB29A8E8C", "zone": "CANAA", "mac": "SUMCB29A8E8C", "vlan": "300", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.56, "sig1310": -31.11}, {"name": "id34614", "olt": "AGUAS CLARAS-1", "onu": "SUMCB29AB394", "zone": "CANAA", "mac": "SUMCB29AB394", "vlan": "300", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.56, "sig1310": -30.318}, {"name": "cliente22156", "olt": "AGUAS CLARAS-1", "onu": "ZKXX29AD5790", "zone": "CANAA", "mac": "ZKXX29AD5790", "vlan": "300", "type": "ZTE-F621", "status": "Warning", "sig1490": -24.55, "sig1310": -30.066}, {"name": "id34432", "olt": "AGUAS CLARAS-1", "onu": "NAVIB2B2827C", "zone": "CANAA", "mac": "NAVIB2B2827C", "vlan": "300", "type": "ZTE-F600", "status": "Warning", "sig1490": -32.218, "sig1310": -31.518}, {"name": "id15368", "olt": "AGUAS CLARAS-1", "onu": "ZTEGD1D7924A", "zone": "CANAA", "mac": "ZTEGD1D7924A", "vlan": "300", "type": "ZTE-F621", "status": "Warning", "sig1490": -24.942, "sig1310": -30.223}, {"name": "id34318", "olt": "AGUAS CLARAS-1", "onu": "MONU005F2651", "zone": "CANAA", "mac": "MONU005F2651", "vlan": "300", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -30.732}, {"name": "cliente13607", "olt": "AGUAS CLARAS-1", "onu": "ZKXX01DA46D5", "zone": "CANAA", "mac": "ZKXX01DA46D5", "vlan": "300", "type": "ZTE-F621", "status": "Warning", "sig1490": -23.372, "sig1310": -30.0}, {"name": "42270 - GILLIARD EMANUEL SAMPAIO MENDES", "olt": "AGUAS CLARAS-1", "onu": "NV40B2B0F114", "zone": "CANAA", "mac": "NV40B2B0F114", "vlan": "300", "type": "010H", "status": "Warning", "sig1490": -28.54, "sig1310": -31.95}, {"name": "cliente16406", "olt": "AGUAS CLARAS-2", "onu": "ZKXX0171E4CC", "zone": "CANAA", "mac": "ZKXX0171E4CC", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -27.692, "sig1310": -30.044}, {"name": "cliente18417", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA2125", "zone": "CANAA", "mac": "ZKXX01DA2125", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -23.872, "sig1310": -30.41}, {"name": "id32694", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD02712DB", "zone": "CANAA", "mac": "ZTEGD02712DB", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.862, "sig1310": -31.549}, {"name": "cliente17871", "olt": "AGUAS CLARAS-2", "onu": "FTTH4086B282", "zone": "CANAA", "mac": "FTTH4086B282", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -33.008, "sig1310": -31.427}, {"name": "cliente11352", "olt": "AGUAS CLARAS-2", "onu": "DD32E650C58B", "zone": "CANAA", "mac": "DD32E650C58B", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.432, "sig1310": -31.682}, {"name": "cliente10930", "olt": "AGUAS CLARAS-2", "onu": "ZKXX0171E284", "zone": "CANAA", "mac": "ZKXX0171E284", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.38, "sig1310": -30.0}, {"name": "41309 - CAMILA DIAS REIS", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C35793", "zone": "CANAA", "mac": "ZTEGD8C35793", "vlan": "200", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -26.384, "sig1310": -31.085}, {"name": "id33262pt02", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B932DC", "zone": "CANAA", "mac": "NV40B2B932DC", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.53, "sig1310": -30.285}, {"name": "cliente21905", "olt": "AGUAS CLARAS-2", "onu": "DD18B3D3CCD4", "zone": "CANAA", "mac": "DD18B3D3CCD4", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -26.57, "sig1310": -30.0}, {"name": "cliente19767", "olt": "AGUAS CLARAS-2", "onu": "SUMCB29A8E4C", "zone": "CANAA", "mac": "SUMCB29A8E4C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.586, "sig1310": -30.0}, {"name": "31848 - ALVARO DOS SANTOS RODRIGUES JUNIOR", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD98B12A0", "zone": "CANAA", "mac": "ZTEGD98B12A0", "vlan": "200", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -26.384, "sig1310": -31.549}, {"name": "cliente15101", "olt": "AGUAS CLARAS-2", "onu": "DD32E69CD79B", "zone": "CANAA", "mac": "DD32E69CD79B", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -26.57, "sig1310": -31.816}, {"name": "cliente15109", "olt": "AGUAS CLARAS-2", "onu": "DB19463EC3FE", "zone": "CANAA", "mac": "DB19463EC3FE", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -29.202, "sig1310": -30.091}, {"name": "id38502", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD15B1B57", "zone": "CANAA", "mac": "ZTEGD15B1B57", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.688, "sig1310": -31.549}, {"name": "cliente19692", "olt": "AGUAS CLARAS-2", "onu": "DE376A76FCD4", "zone": "CANAA", "mac": "DE376A76FCD4", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.372, "sig1310": -31.433}, {"name": "id11396", "olt": "AGUAS CLARAS-2", "onu": "DD32E650125A", "zone": "CANAA", "mac": "DD32E650125A", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.21, "sig1310": -31.816}, {"name": "cliente13211", "olt": "AGUAS CLARAS-2", "onu": "NAVIB2B27BAC", "zone": "CANAA", "mac": "NAVIB2B27BAC", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -31.085}, {"name": "cliente10829", "olt": "AGUAS CLARAS-2", "onu": "ZKXX020684BD", "zone": "CANAA", "mac": "ZKXX020684BD", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.022, "sig1310": -30.457}, {"name": "id40860", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C35D64", "zone": "CANAA", "mac": "ZTEGD8C35D64", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -30.969}, {"name": "id34804", "olt": "AGUAS CLARAS-2", "onu": "SUMCB29B873C", "zone": "CANAA", "mac": "SUMCB29B873C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.198, "sig1310": -30.866}, {"name": "id34879", "olt": "AGUAS CLARAS-2", "onu": "MONU0065C129", "zone": "CANAA", "mac": "MONU0065C129", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.38, "sig1310": -31.317}, {"name": "cliente19632", "olt": "AGUAS CLARAS-2", "onu": "ZKXX29AD5BD8", "zone": "CANAA", "mac": "ZKXX29AD5BD8", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -27.442, "sig1310": -30.866}, {"name": "id12752", "olt": "AGUAS CLARAS-2", "onu": "DE20E6976E5A", "zone": "CANAA", "mac": "DE20E6976E5A", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.98, "sig1310": -30.457}, {"name": "31042 - SERGIO RICARDO ARAUJO FILHO", "olt": "AGUAS CLARAS-2", "onu": "MONU007E6781", "zone": "CANAA", "mac": "MONU007E6781", "vlan": "200", "type": "010H", "status": "Warning", "sig1490": -26.98, "sig1310": -31.433}, {"name": "29657 - ANA BEATRIZ NATARIO DE AGUIAR GALVAO", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C44952", "zone": "CANAA", "mac": "ZTEGD8C44952", "vlan": "200", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -24.56, "sig1310": -30.433}, {"name": "40741 - ANDRE LUIZ DOMINGUES CAVALCANTI MOURAO CRESPO", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C35664", "zone": "CANAA", "mac": "ZTEGD8C35664", "vlan": "200", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.528, "sig1310": -30.809}, {"name": "cliente17991", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B911C4", "zone": "CANAA", "mac": "NV40B2B911C4", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.0, "sig1310": -30.866}, {"name": "cliente5258", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81EADB7", "zone": "CANAA", "mac": "ZTEGD81EADB7", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -31.682}, {"name": "cliente6531", "olt": "AGUAS CLARAS-2", "onu": "NBELB170FC5D", "zone": "CANAA", "mac": "NBELB170FC5D", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.24, "sig1310": -30.764}, {"name": "cliente16947", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD1DA3303", "zone": "CANAA", "mac": "", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.55, "sig1310": -30.387}, {"name": "cliente16089", "olt": "AGUAS CLARAS-2", "onu": "MONU005ECBA9", "zone": "CANAA", "mac": "MONU005ECBA9", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.81, "sig1310": -30.969}, {"name": "cliente20617", "olt": "AGUAS CLARAS-2", "onu": "MONU007C7059", "zone": "CANAA", "mac": "MONU007C7059", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -30.958, "sig1310": -30.778}, {"name": "id12110", "olt": "AGUAS CLARAS-2", "onu": "DACM91D38496", "zone": "CANAA", "mac": "DACM91D38496", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.24, "sig1310": -31.201}, {"name": "14359 - SARA RAQUEL COELHO DE OLIVEIRA", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B935DC", "zone": "CANAA", "mac": "NV40B2B935DC", "vlan": "200", "type": "010H", "status": "Warning", "sig1490": -29.208, "sig1310": -30.366}, {"name": "cliente6029", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD15ABEDC", "zone": "CANAA", "mac": "ZTEGD15ABEDC", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.872, "sig1310": -30.366}, {"name": "cliente12803", "olt": "AGUAS CLARAS-2", "onu": "ZKXX00B24D2E", "zone": "CANAA", "mac": "ZKXX00B24D2E", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.762, "sig1310": -31.085}, {"name": "15517 - TERSANDRO SOUSA CABRAL", "olt": "AGUAS CLARAS-2", "onu": "VSOL0023D92D", "zone": "CANAA", "mac": "VSOL0023D92D", "vlan": "200", "type": "VSOLD401", "status": "Warning", "sig1490": -23.97, "sig1310": -30.091}, {"name": "cliente10390", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA1195", "zone": "CANAA", "mac": "ZKXX01DA1195", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.372, "sig1310": -30.559}, {"name": "id38353", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8D98B26", "zone": "CANAA", "mac": "ZTEGD8D98B26", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -30.366}, {"name": "cliente17237", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B90474", "zone": "CANAA", "mac": "NV40B2B90474", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.09, "sig1310": -30.0}, {"name": "id38775", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD82EFDA7", "zone": "CANAA", "mac": "ZTEGD82EFDA7", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.376, "sig1310": -31.549}, {"name": "42272 - ARTHUR SOUZA OLIVEIRA", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C34B94", "zone": "CANAA", "mac": "ZTEGD8C34B94", "vlan": "200", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -23.98, "sig1310": -30.891}, {"name": "id35931", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B90A94", "zone": "CANAA", "mac": "NV40B2B90A94", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -31.816}, {"name": "id38914", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD70F1E7C", "zone": "CANAA", "mac": "ZTEGD70F1E7C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.686, "sig1310": -31.45}, {"name": "id13811", "olt": "AGUAS CLARAS-2", "onu": "VSOL0023A4E5", "zone": "CANAA", "mac": "VSOL0023A4E5", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.942, "sig1310": -31.433}, {"name": "cliente17546", "olt": "AGUAS CLARAS-2", "onu": "NV21B2AFE2BC", "zone": "CANAA", "mac": "NV21B2AFE2BC", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.212, "sig1310": -31.95}, {"name": "cliente17603", "olt": "AGUAS CLARAS-2", "onu": "DD32E69CCFF1", "zone": "CANAA", "mac": "DD32E69CCFF1", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -23.66, "sig1310": -31.682}, {"name": "cliente18921", "olt": "AGUAS CLARAS-2", "onu": "NAVIB2B2695C", "zone": "CANAA", "mac": "NAVIB2B2695C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.686, "sig1310": -30.559}, {"name": "id14374", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA3125", "zone": "CANAA", "mac": "", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.762, "sig1310": -31.085}, {"name": "41605 - BRUNO ARAUJO BRANDAO", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B12454", "zone": "CANAA", "mac": "NV40B2B12454", "vlan": "200", "type": "010H", "status": "Warning", "sig1490": -24.95, "sig1310": -30.764}, {"name": "41704 - TIAGO OLIVEIRA DA SILVA", "olt": "AGUAS CLARAS-2", "onu": "ZTEGDA612BC2", "zone": "CANAA", "mac": "ZTEGDA612BC2", "vlan": "200", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -23.872, "sig1310": -30.559}, {"name": "24739 - ALDA ALICE MARIA RIBEIRO TEIXEIRA DE ALMEIDA", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C45B40", "zone": "CANAA", "mac": "ZTEGD8C45B40", "vlan": "200", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -23.188, "sig1310": -30.366}, {"name": "34674 - PATRICIA TAIS SANTOS LOPES GAMA", "olt": "AGUAS CLARAS-2", "onu": "NV21B2AFEFE4", "zone": "CANAA", "mac": "NV21B2AFEFE4", "vlan": "200", "type": "010H", "status": "Warning", "sig1490": -25.23, "sig1310": -31.201}, {"name": "id37371", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B094DC", "zone": "CANAA", "mac": "NV40B2B094DC", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.56, "sig1310": -30.764}, {"name": "id37409", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B0A384", "zone": "CANAA", "mac": "NV40B2B0A384", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.448, "sig1310": -30.191}, {"name": "id37565", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B935B4", "zone": "CANAA", "mac": "NV40B2B935B4", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.438, "sig1310": -30.57}, {"name": "id38423", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8D98C73", "zone": "CANAA", "mac": "ZTEGD8D98C73", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.872, "sig1310": -30.0}, {"name": "id39154", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81EBA88", "zone": "CANAA", "mac": "ZTEGD81EBA88", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.872, "sig1310": -30.457}, {"name": "id39327", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81FE978", "zone": "CANAA", "mac": "ZTEGD81FE978", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.372, "sig1310": -30.662}, {"name": "id39469", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81E90FA", "zone": "CANAA", "mac": "ZTEGD81E90FA", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.088, "sig1310": -31.682}, {"name": "id38449pt02", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C34839", "zone": "CANAA", "mac": "ZTEGD8C34839", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.202, "sig1310": -30.468}, {"name": "41839 - DANNILO GOMES BERTUNES", "olt": "AGUAS CLARAS-2", "onu": "NV21B2B137CC", "zone": "CANAA", "mac": "NV21B2B137CC", "vlan": "200", "type": "010H", "status": "Warning", "sig1490": -25.23, "sig1310": -30.0}, {"name": "id37071", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B90494", "zone": "CANAA", "mac": "NV40B2B90494", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.208, "sig1310": -31.098}, {"name": "cliente9433", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C4212C", "zone": "CANAA", "mac": "ZTEGD8C4212C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.528, "sig1310": -30.292}, {"name": "cliente18384", "olt": "AGUAS CLARAS-2", "onu": "DD32E69BE1EF", "zone": "CANAA", "mac": "DD32E69BE1EF", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -26.98, "sig1310": -31.22}, {"name": "cliente6979", "olt": "AGUAS CLARAS-2", "onu": "ZKXX0171DEEC", "zone": "CANAA", "mac": "ZKXX0171DEEC", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -31.54, "sig1310": -31.22}, {"name": "cliente16846", "olt": "AGUAS CLARAS-2", "onu": "DE376A4B37B4", "zone": "CANAA", "mac": "DE376A4B37B4", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -28.862, "sig1310": -31.367}, {"name": "id39431", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81EADD1", "zone": "CANAA", "mac": "ZTEGD81EADD1", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.438, "sig1310": -30.655}, {"name": "id13829", "olt": "AGUAS CLARAS-2", "onu": "VSOL0023A801", "zone": "CANAA", "mac": "VSOL0023A801", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.81, "sig1310": -30.458}, {"name": "id35945", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B9181C", "zone": "CANAA", "mac": "NV40B2B9181C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.778, "sig1310": -31.488}, {"name": "cliente8172pt2", "olt": "AGUAS CLARAS-2", "onu": "NBELB16D5190", "zone": "CANAA", "mac": "NBELB16D5190", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.212, "sig1310": -30.707}, {"name": "cliente14190", "olt": "AGUAS CLARAS-2", "onu": "DD32E69BCE24", "zone": "CANAA", "mac": "DD32E69BCE24", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.682, "sig1310": -30.363}, {"name": "40636 - CARLOS VICTOR DE OLIVEIRA NOGUEIRA", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C37311", "zone": "CANAA", "mac": "ZTEGD8C37311", "vlan": "200", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -24.948, "sig1310": -30.862}, {"name": "id33319", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA20AD", "zone": "CANAA", "mac": "ZKXX01DA20AD", "vlan": "750", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.682, "sig1310": -31.163}, {"name": "id32980", "olt": "AGUAS CLARAS-2", "onu": "ZKXX0171F53C", "zone": "CANAA", "mac": "ZKXX0171F53C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -30.226}, {"name": "cliente14954", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C449C6", "zone": "CANAA", "mac": "ZTEGD8C449C6", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.212, "sig1310": -30.2}, {"name": "cliente16222", "olt": "AGUAS CLARAS-2", "onu": "DE30E6F6EC20", "zone": "CANAA", "mac": "DE30E6F6EC20", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -26.192, "sig1310": -30.662}, {"name": "cliente19004", "olt": "AGUAS CLARAS-2", "onu": "DD32E69D1F2F", "zone": "CANAA", "mac": "", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -30.008}, {"name": "id17896", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B0FE0C", "zone": "CANAA", "mac": "NV40B2B0FE0C", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.456, "sig1310": -30.183}, {"name": "cliente21978", "olt": "AGUAS CLARAS-2", "onu": "MONU0078BEA9", "zone": "CANAA", "mac": "MONU0078BEA9", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -31.54, "sig1310": -31.085}, {"name": "cliente8893", "olt": "AGUAS CLARAS-2", "onu": "MONU005DB6D1", "zone": "CANAA", "mac": "", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.532, "sig1310": -31.584}, {"name": "cliente17402", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA245D", "zone": "CANAA", "mac": "ZKXX01DA245D", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -25.522, "sig1310": -30.274}, {"name": "id12669", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C36008", "zone": "CANAA", "mac": "ZTEGD8C36008", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.54, "sig1310": -31.433}, {"name": "40418 - DANIELA CARDOSO SANTANA", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8D98AB4", "zone": "CANAA", "mac": "ZTEGD8D98AB4", "vlan": "200", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -32.216, "sig1310": -31.433}, {"name": "cliente18106", "olt": "AGUAS CLARAS-2", "onu": "ZKXX019E17E7", "zone": "CANAA", "mac": "ZKXX019E17E7", "vlan": "200", "type": "ZTE-F621", "status": "Warning", "sig1490": -29.58, "sig1310": -31.682}, {"name": "id15256", "olt": "AGUAS CLARAS-2", "onu": "DD16B3E34D4E", "zone": "CANAA", "mac": "DD16B3E34D4E", "vlan": "200", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.958, "sig1310": -31.098}, {"name": "cliente12949", "olt": "AGUAS CLARAS-3", "onu": "DD32E69C03D3", "zone": "CANAA", "mac": "DD32E69C03D3", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.38, "sig1310": -31.816}, {"name": "id32741", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD1D78750", "zone": "CANAA", "mac": "ZTEGD1D78750", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.772, "sig1310": -31.682}, {"name": "id39410", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD81EBAB3", "zone": "CANAA", "mac": "ZTEGD81EBAB3", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.28, "sig1310": -30.283}, {"name": "id33183", "olt": "AGUAS CLARAS-3", "onu": "NV40B2AEFEF4", "zone": "CANAA", "mac": "NV40B2AEFEF4", "vlan": "750", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.96, "sig1310": -30.559}, {"name": "cliente21763", "olt": "AGUAS CLARAS-3", "onu": "MONU0065F4D9", "zone": "CANAA", "mac": "MONU0065F4D9", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -21.872, "sig1310": -30.116}, {"name": "40333 - JOSE VALDOMIR PEREIRA DA SILVA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C41E6F", "zone": "CANAA", "mac": "ZTEGD8C41E6F", "vlan": "400", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.528, "sig1310": -31.085}, {"name": "id12565", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B0F95C", "zone": "CANAA", "mac": "NV40B2B0F95C", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -30.866}, {"name": "cliente20489", "olt": "AGUAS CLARAS-3", "onu": "DD32E69B854C", "zone": "CANAA", "mac": "DD32E69B854C", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -23.182, "sig1310": -30.662}, {"name": "id14603", "olt": "AGUAS CLARAS-3", "onu": "MONU00F7CC65", "zone": "CANAA", "mac": "MONU00F7CC65", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.81, "sig1310": -31.7}, {"name": "id12065", "olt": "AGUAS CLARAS-3", "onu": "DD32E69C6E23", "zone": "CANAA", "mac": "DD32E69C6E23", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.432, "sig1310": -30.191}, {"name": "id36288", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B09E3C", "zone": "CANAA", "mac": "NV40B2B09E3C", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.24, "sig1310": -30.866}, {"name": "cliente14349", "olt": "AGUAS CLARAS-3", "onu": "DE30E6F78520", "zone": "CANAA", "mac": "DE30E6F78520", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -22.07, "sig1310": -30.274}, {"name": "cliente17834", "olt": "AGUAS CLARAS-3", "onu": "DE376A76EACB", "zone": "CANAA", "mac": "DE376A76EACB", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -22.752, "sig1310": -31.682}, {"name": "cliente1787", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B8FDFC", "zone": "CANAA", "mac": "NV40B2B8FDFC", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.54, "sig1310": -30.559}, {"name": "id18039", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD70F20AC", "zone": "CANAA", "mac": "ZTEGD70F20AC", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.448, "sig1310": -30.0}, {"name": "Id39867", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C357A8", "zone": "CANAA", "mac": "ZTEGD8C357A8", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.384, "sig1310": -30.0}, {"name": "id12562", "olt": "AGUAS CLARAS-3", "onu": "DACM91D4112C", "zone": "CANAA", "mac": "DACM91D4112C", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.374, "sig1310": -30.409}, {"name": "id11949", "olt": "AGUAS CLARAS-3", "onu": "DACM91D88BA8", "zone": "CANAA", "mac": "DACM91D88BA8", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.0, "sig1310": -30.132}, {"name": "cliente11613", "olt": "AGUAS CLARAS-3", "onu": "DD32E651447E", "zone": "CANAA", "mac": "DD32E651447E", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -21.8, "sig1310": -30.0}, {"name": "cliente19799", "olt": "AGUAS CLARAS-3", "onu": "MONU007E6D71", "zone": "CANAA", "mac": "MONU007E6D71", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -24.81, "sig1310": -30.265}, {"name": "cliente19341", "olt": "AGUAS CLARAS-3", "onu": "MONU007CAA29", "zone": "CANAA", "mac": "", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.21, "sig1310": -30.021}, {"name": "24941 - SANDRO WESLEY DOS SANTOS SILVA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD70F1F64", "zone": "CANAA", "mac": "ZTEGD70F1F64", "vlan": "400", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -22.758, "sig1310": -30.862}, {"name": "id34059", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD02AB099", "zone": "CANAA", "mac": "ZTEGD02AB099", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.55, "sig1310": -30.362}, {"name": "cliente13345", "olt": "AGUAS CLARAS-3", "onu": "DD32E69D1A4C", "zone": "CANAA", "mac": "DD32E69D1A4C", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -24.432, "sig1310": -30.109}, {"name": "id39746", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C348B6", "zone": "CANAA", "mac": "ZTEGD8C348B6", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.872, "sig1310": -30.269}, {"name": "28611 - BRUNA CRISTINA LEANDRO ARRUDA", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B0ACD4", "zone": "CANAA", "mac": "NV40B2B0ACD4", "vlan": "400", "type": "SM162242-GHDU6HR-TX4", "status": "Warning", "sig1490": -33.01, "sig1310": -30.996}, {"name": "cliente9492", "olt": "AGUAS CLARAS-3", "onu": "ZKXX01DA305D", "zone": "CANAA", "mac": "ZKXX01DA305D", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.958, "sig1310": -30.274}, {"name": "id38892", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD70F1E98", "zone": "CANAA", "mac": "ZTEGD70F1E98", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.968, "sig1310": -30.457}, {"name": "42417 - ELIANE DA SILVA CARNEIRO BARBOSA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD1DA83AC", "zone": "CANAA", "mac": "ZTEGD1DA83AC", "vlan": "400", "type": "F601V7.0", "status": "Warning", "sig1490": -25.682, "sig1310": -31.7}, {"name": "cliente19454", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B4B61C", "zone": "CANAA", "mac": "NV40B2B4B61C", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.214, "sig1310": -30.468}, {"name": "cliente18925", "olt": "AGUAS CLARAS-3", "onu": "ZKXX0171D0DC", "zone": "CANAA", "mac": "ZKXX0171D0DC", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -22.752, "sig1310": -31.633}, {"name": "id34913", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B4B4FC", "zone": "CANAA", "mac": "NV40B2B4B4FC", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.778, "sig1310": -31.534}, {"name": "cliente21758", "olt": "AGUAS CLARAS-3", "onu": "MONU00663B61", "zone": "CANAA", "mac": "MONU00663B61", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -25.852, "sig1310": -31.201}, {"name": "40810 - SESSENTA MINUTOS DELTA SERVICOS E ENTRETENIMENTO LTDA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD98D0A75", "zone": "CANAA", "mac": "ZTEGD98D0A75", "vlan": "400", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -25.088, "sig1310": -31.745}, {"name": "cliente17792", "olt": "AGUAS CLARAS-3", "onu": "DD32E69A9DF8", "zone": "CANAA", "mac": "DD32E69A9DF8", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -24.682, "sig1310": -31.137}, {"name": "id12603", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD1DA3F58", "zone": "CANAA", "mac": "ZTEGD1DA3F58", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.022, "sig1310": -31.725}, {"name": "id38858", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8201927", "zone": "CANAA", "mac": "ZTEGD8201927", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.088, "sig1310": -30.764}, {"name": "MARCUS VINICIUS PEREIRA DOS SANTOS", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C2E876", "zone": "CANAA", "mac": "ZTEGD8C2E876", "vlan": "400", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -24.09, "sig1310": -30.183}, {"name": "id39300", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD81FDB44", "zone": "CANAA", "mac": "ZTEGD81FDB44", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.24, "sig1310": -30.285}, {"name": "cliente20677", "olt": "AGUAS CLARAS-3", "onu": "DD32E6502CF7", "zone": "CANAA", "mac": "DD32E6502CF7", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -24.682, "sig1310": -31.348}, {"name": "35762 - GUILHERME MACHADO DE LIRA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C41E8F", "zone": "CANAA", "mac": "ZTEGD8C41E8F", "vlan": "400", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -24.438, "sig1310": -31.718}, {"name": "cliente20950", "olt": "AGUAS CLARAS-3", "onu": "DD32E69CCF58", "zone": "CANAA", "mac": "DD32E69CCF58", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -22.922, "sig1310": -31.098}, {"name": "id36815", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B938FC", "zone": "CANAA", "mac": "NV40B2B938FC", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.768, "sig1310": -30.091}, {"name": "id39856", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C36D10", "zone": "CANAA", "mac": "ZTEGD8C36D10", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.468, "sig1310": -31.682}, {"name": "40273 - MARIA LUISA GUIMARAES E SILVA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C41BC4", "zone": "CANAA", "mac": "ZTEGD8C41BC4", "vlan": "400", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -23.872, "sig1310": -31.816}, {"name": "id39318", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD81E90FB", "zone": "CANAA", "mac": "ZTEGD81E90FB", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.23, "sig1310": -30.506}, {"name": "id35798", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B905A4", "zone": "CANAA", "mac": "NV40B2B905A4", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.456, "sig1310": -31.192}, {"name": "id36624", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B923AC", "zone": "CANAA", "mac": "NV40B2B923AC", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.198, "sig1310": -30.555}, {"name": "id14958pt02", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B11E54", "zone": "CANAA", "mac": "", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.586, "sig1310": -30.784}, {"name": "41812 - BRUNA IANKA BERNARDES DE JESUS GOMES", "olt": "AGUAS CLARAS-3", "onu": "NV40B2AE724C", "zone": "CANAA", "mac": "NV40B2AE724C", "vlan": "400", "type": "010H", "status": "Warning", "sig1490": -28.54, "sig1310": -30.58}, {"name": "cliente22052", "olt": "AGUAS CLARAS-3", "onu": "MONU006590F1", "zone": "CANAA", "mac": "MONU006590F1", "vlan": "400", "type": "ZTE-F621", "status": "Warning", "sig1490": -30.45, "sig1310": -31.457}, {"name": "38321 - KEILA MARTINS ALVES", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD70F2086", "zone": "CANAA", "mac": "ZTEGD70F2086", "vlan": "400", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -32.216, "sig1310": -30.996}, {"name": "id33652", "olt": "AGUAS CLARAS-3", "onu": "NV21B2B1F6AC", "zone": "CANAA", "mac": "NV21B2B1F6AC", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -30.245}, {"name": "41014 - DROGARIA V.T COMERCIO LTDA", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B12C0C", "zone": "CANAA", "mac": "NV40B2B12C0C", "vlan": "400", "type": "010H", "status": "Warning", "sig1490": -27.214, "sig1310": -30.68}, {"name": "35618 - MARCELO MESQUITA COSTA", "olt": "AGUAS CLARAS-3", "onu": "MONU007B86C1", "zone": "CANAA", "mac": "MONU007B86C1", "vlan": "400", "type": "010H", "status": "Warning", "sig1490": -26.022, "sig1310": -31.163}, {"name": "id34813", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD1BC57EA", "zone": "CANAA", "mac": "", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.952, "sig1310": -30.021}, {"name": "id36856", "olt": "AGUAS CLARAS-3", "onu": "NV40B2B10D5C", "zone": "CANAA", "mac": "NV40B2B10D5C", "vlan": "400", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.862, "sig1310": -30.021}, {"name": "40378 - V&F ALIMENTOS LTDA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C2D8DE", "zone": "CANAA", "mac": "ZTEGD8C2D8DE", "vlan": "400", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.528, "sig1310": -30.706}, {"name": "39915 - AMANDA CAROLLINE DE JESUS ROCHA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGC4B30CF4", "zone": "CANAA", "mac": "ZTEGC4B30CF4", "vlan": "400", "type": "F670LV1.1.01", "status": "Warning", "sig1490": -27.96, "sig1310": -30.915}, {"name": "id10325", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8D98BB8", "zone": "CANAA", "mac": "ZTEGD8D98BB8", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.696, "sig1310": -30.385}, {"name": "4448 - RODRIGO AMARAL SILVA", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C35789", "zone": "CANAA", "mac": "ZTEGD8C35789", "vlan": "100", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -30.0, "sig1310": -30.091}, {"name": "id38448", "olt": "TAGUATINGA-N1", "onu": "ZTEGD15AFFFB", "zone": "CANAA", "mac": "ZTEGD15AFFFB", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.696, "sig1310": -31.549}, {"name": "id6691", "olt": "TAGUATINGA-N1", "onu": "DD32E69BC9BF", "zone": "CANAA", "mac": "DD32E69BC9BF", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.202, "sig1310": -30.183}, {"name": "41829 - MARTA ELLEN LUCAS BORBA", "olt": "TAGUATINGA-N1", "onu": "ZTEGDA615DC8", "zone": "CANAA", "mac": "ZTEGDA615DC8", "vlan": "100", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -31.548, "sig1310": -30.866}, {"name": "id3479", "olt": "TAGUATINGA-N1", "onu": "DD32E6506702", "zone": "CANAA", "mac": "DD32E6506702", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -32.208, "sig1310": -30.969}, {"name": "id6594", "olt": "TAGUATINGA-N1", "onu": "ZKXX01DA2ACD", "zone": "CANAA", "mac": "ZKXX01DA2ACD", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.762, "sig1310": -30.183}, {"name": "id38266", "olt": "TAGUATINGA-N1", "onu": "ZTEGD81FDBA4", "zone": "CANAA", "mac": "ZTEGD81FDBA4", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.96, "sig1310": -30.457}, {"name": "id7187", "olt": "TAGUATINGA-N1", "onu": "DD32E69BEE46", "zone": "CANAA", "mac": "DD32E69BEE46", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.21, "sig1310": -31.95}, {"name": "id14952", "olt": "TAGUATINGA-N1", "onu": "ZTEGD1DA868C", "zone": "CANAA", "mac": "ZTEGD1DA868C", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.522, "sig1310": -30.457}, {"name": "id7485", "olt": "TAGUATINGA-N1", "onu": "ZKXX01DA27D5", "zone": "CANAA", "mac": "ZKXX01DA27D5", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -31.54, "sig1310": -30.457}, {"name": "id6689", "olt": "TAGUATINGA-N1", "onu": "ZTEGD1CB06FD", "zone": "CANAA", "mac": "", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.98, "sig1310": -31.682}, {"name": "id14536", "olt": "TAGUATINGA-N1", "onu": "ZTEGD81E911B", "zone": "CANAA", "mac": "ZTEGD81E911B", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -22.366, "sig1310": -30.0}, {"name": "id3639", "olt": "TAGUATINGA-N1", "onu": "ZKXX02066F3D", "zone": "CANAA", "mac": "ZKXX02066F3D", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -31.54, "sig1310": -30.457}, {"name": "id077", "olt": "TAGUATINGA-N1", "onu": "DD32E69C73C3", "zone": "CANAA", "mac": "DD32E69C73C3", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.58, "sig1310": -30.183}, {"name": "id11959", "olt": "TAGUATINGA-N1", "onu": "DACM91D89576", "zone": "CANAA", "mac": "DACM91D89576", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.208, "sig1310": -31.549}, {"name": "id767", "olt": "TAGUATINGA-N1", "onu": "NBELB17FFB91", "zone": "CANAA", "mac": "NBELB17FFB91", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.02, "sig1310": -30.969}, {"name": "13034 - IANUSA CADORE AIMI", "olt": "TAGUATINGA-N1", "onu": "ZTEGC4B2FDE5", "zone": "CANAA", "mac": "ZTEGC4B2FDE5", "vlan": "100", "type": "F670LV1.1.01", "status": "Warning", "sig1490": -31.548, "sig1310": -31.433}, {"name": "id10702", "olt": "TAGUATINGA-N1", "onu": "DD32E69CD6D5", "zone": "CANAA", "mac": "DD32E69CD6D5", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -30.969}, {"name": "id5300", "olt": "TAGUATINGA-N1", "onu": "DD32E69C6F82", "zone": "CANAA", "mac": "DD32E69C6F82", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.522, "sig1310": -30.969}, {"name": "id42341", "olt": "TAGUATINGA-N1", "onu": "ZTEGDB0C1EE8", "zone": "CANAA", "mac": "ZTEGDB0C1EE8", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.384, "sig1310": -30.662}, {"name": "id12972", "olt": "TAGUATINGA-N1", "onu": "ZKXX02067515", "zone": "CANAA", "mac": "ZKXX02067515", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.81, "sig1310": -30.559}, {"name": "41240 - WILLIAM BARBOSA CASTRO", "olt": "TAGUATINGA-N1", "onu": "ZTEGD98B127A", "zone": "CANAA", "mac": "ZTEGD98B127A", "vlan": "100", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -21.806, "sig1310": -30.366}, {"name": "id12037", "olt": "TAGUATINGA-N1", "onu": "ZTEGD70F1EDD", "zone": "CANAA", "mac": "ZTEGD70F1EDD", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.696, "sig1310": -31.682}, {"name": "id7712", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C308D1", "zone": "CANAA", "mac": "ZTEGD8C308D1", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -30.969}, {"name": "id10187", "olt": "TAGUATINGA-N1", "onu": "DE30E6F74F68", "zone": "CANAA", "mac": "DE30E6F74F68", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.08, "sig1310": -30.468}, {"name": "id8706", "olt": "TAGUATINGA-N1", "onu": "NV21B2B1F4A4", "zone": "CANAA", "mac": "NV21B2B1F4A4", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.862, "sig1310": -31.549}, {"name": "id2153", "olt": "TAGUATINGA-N1", "onu": "ZTEGD1CAA90B", "zone": "CANAA", "mac": "ZTEGD1CAA90B", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.58, "sig1310": -31.549}, {"name": "id39870", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C2E6CC", "zone": "CANAA", "mac": "ZTEGD8C2E6CC", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.588, "sig1310": -30.969}, {"name": "id10852", "olt": "TAGUATINGA-N1", "onu": "ZKXX020697AD", "zone": "CANAA", "mac": "ZKXX020697AD", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.522, "sig1310": -31.085}, {"name": "id7316", "olt": "TAGUATINGA-N1", "onu": "DD32E69CE4EE", "zone": "CANAA", "mac": "DD32E69CE4EE", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.202, "sig1310": -30.457}, {"name": "13598 - PAULO HENRIQUE BORGES VIEIRA", "olt": "TAGUATINGA-N1", "onu": "NV40B2B1260C", "zone": "CANAA", "mac": "NV40B2B1260C", "vlan": "100", "type": "010H", "status": "Warning", "sig1490": -27.448, "sig1310": -30.366}, {"name": "id6863", "olt": "TAGUATINGA-N1", "onu": "ZKXX0206905D", "zone": "CANAA", "mac": "ZKXX0206905D", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.58, "sig1310": -31.433}, {"name": "id35267", "olt": "TAGUATINGA-N1", "onu": "NV40B2B0F7CC", "zone": "CANAA", "mac": "NV40B2B0F7CC", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.214, "sig1310": -31.317}, {"name": "id3118", "olt": "TAGUATINGA-N1", "onu": "ZKXX0171D95C", "zone": "CANAA", "mac": "ZKXX0171D95C", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -20.75, "sig1310": -30.662}, {"name": "id8796", "olt": "TAGUATINGA-N1", "onu": "DE376A76195E", "zone": "CANAA", "mac": "DE376A76195E", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.022, "sig1310": -30.366}, {"name": "id9235", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C45724", "zone": "CANAA", "mac": "ZTEGD8C45724", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -22.84, "sig1310": -31.085}, {"name": "5739 - MARIA APARECIDA LEONARDO", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C4399E", "zone": "CANAA", "mac": "ZTEGD8C4399E", "vlan": "100", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -29.588, "sig1310": -30.366}, {"name": "id14815", "olt": "TAGUATINGA-N1", "onu": "FTTH4086AD6C", "zone": "CANAA", "mac": "FTTH4086AD6C", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.66, "sig1310": -30.969}, {"name": "cliente10017", "olt": "TAGUATINGA-N1", "onu": "MRWY3C009161", "zone": "CANAA", "mac": "MRWY3C009161", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.442, "sig1310": -31.144}, {"name": "id10997", "olt": "TAGUATINGA-N1", "onu": "NV40B2B12C24", "zone": "CANAA", "mac": "NV40B2B12C24", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.696, "sig1310": -30.866}, {"name": "14218 - PABLO MICHELANGELO SILVA FERNANDES", "olt": "TAGUATINGA-N1", "onu": "DB19463EBD62", "zone": "CANAA", "mac": "DB19463EBD62", "vlan": "100", "type": "010H", "status": "Warning", "sig1490": -28.23, "sig1310": -30.274}, {"name": "id36080", "olt": "TAGUATINGA-N1", "onu": "NV40B2B12324", "zone": "CANAA", "mac": "NV40B2B12324", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.862, "sig1310": -30.0}, {"name": "id13966", "olt": "TAGUATINGA-N1", "onu": "VSOL0023D939", "zone": "CANAA", "mac": "VSOL0023D939", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.442, "sig1310": -31.201}, {"name": "id35329", "olt": "TAGUATINGA-N1", "onu": "MONU00659BC9", "zone": "CANAA", "mac": "MONU00659BC9", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.202, "sig1310": -31.58}, {"name": "id3657", "olt": "TAGUATINGA-N1", "onu": "ZKXX020677A5", "zone": "CANAA", "mac": "ZKXX020677A5", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.55, "sig1310": -30.339}, {"name": "id4584", "olt": "TAGUATINGA-N1", "onu": "DD32E69A8F4F", "zone": "CANAA", "mac": "DD32E69A8F4F", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.08, "sig1310": -30.222}, {"name": "id32691", "olt": "TAGUATINGA-N1", "onu": "ZTEGD1DA53B3", "zone": "CANAA", "mac": "ZTEGD1DA53B3", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.98, "sig1310": -30.362}, {"name": "id8382", "olt": "TAGUATINGA-N1", "onu": "ZKXX01DA235D", "zone": "CANAA", "mac": "", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.692, "sig1310": -30.223}, {"name": "id32928", "olt": "TAGUATINGA-N1", "onu": "MONU007BB7B9", "zone": "CANAA", "mac": "MONU007BB7B9", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.692, "sig1310": -31.906}, {"name": "id7888", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C360B6", "zone": "CANAA", "mac": "ZTEGD8C360B6", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.778, "sig1310": -30.836}, {"name": "id5715", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C2DE25", "zone": "CANAA", "mac": "ZTEGD8C2DE25", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.666, "sig1310": -30.605}, {"name": "id7310", "olt": "TAGUATINGA-N1", "onu": "DD32E6502C5E", "zone": "CANAA", "mac": "DD32E6502C5E", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.202, "sig1310": -30.655}, {"name": "id4951", "olt": "TAGUATINGA-N1", "onu": "DD32E69C69D0", "zone": "CANAA", "mac": "DD32E69C69D0", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.22, "sig1310": -30.338}, {"name": "33049 - BRENO GONTIJO DE CAMARGOS", "olt": "TAGUATINGA-N1", "onu": "ZTEGD81FDAE9", "zone": "CANAA", "mac": "ZTEGD81FDAE9", "vlan": "100", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -24.686, "sig1310": -30.021}, {"name": "id6851", "olt": "TAGUATINGA-N1", "onu": "VSOL0023C2A5", "zone": "CANAA", "mac": "VSOL0023C2A5", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.682, "sig1310": -30.109}, {"name": "id7019", "olt": "TAGUATINGA-N1", "onu": "FTTH4086B432", "zone": "CANAA", "mac": "FTTH4086B432", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -22.362, "sig1310": -30.222}, {"name": "id3536", "olt": "TAGUATINGA-N1", "onu": "NAVIB2B28D1C", "zone": "CANAA", "mac": "NAVIB2B28D1C", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.0, "sig1310": -31.024}, {"name": "34350 - DANIEL BRAGA DE ALMEIDA", "olt": "TAGUATINGA-N1", "onu": "NV40B2B92614", "zone": "CANAA", "mac": "NV40B2B92614", "vlan": "100", "type": "010H", "status": "Warning", "sig1490": -25.23, "sig1310": -31.163}, {"name": "id1501pt02", "olt": "TAGUATINGA-N1", "onu": "NV40B2B0F26C", "zone": "CANAA", "mac": "NV40B2B0F26C", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -30.292}, {"name": "id37332", "olt": "TAGUATINGA-N1", "onu": "DE376A76A1F3", "zone": "CANAA", "mac": "DE376A76A1F3", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -22.442, "sig1310": -30.109}, {"name": "ARILEIDE FERREIRA DE MELO", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C41EC8", "zone": "CANAA", "mac": "ZTEGD8C41EC8", "vlan": "100", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.088, "sig1310": -31.525}, {"name": "id2667", "olt": "TAGUATINGA-N1", "onu": "ZKXX01DA3B05", "zone": "CANAA", "mac": "ZKXX01DA3B05", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.192, "sig1310": -31.427}, {"name": "42453 - WILLANNY GABRIELA RODRIGUES CAMPOS", "olt": "TAGUATINGA-N1", "onu": "ZTEGD02841CB", "zone": "CANAA", "mac": "ZTEGD02841CB", "vlan": "100", "type": "F601V7.0", "status": "Warning", "sig1490": -26.192, "sig1310": -30.386}, {"name": "id7007", "olt": "TAGUATINGA-N1", "onu": "ZKXX0171CB64", "zone": "CANAA", "mac": "ZKXX0171CB64", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.55, "sig1310": -30.0}, {"name": "id15623", "olt": "TAGUATINGA-N1", "onu": "ZTEGD36C5C2E", "zone": "CANAA", "mac": "ZTEGD36C5C2E", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.692, "sig1310": -31.457}, {"name": "id450", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C2F550", "zone": "CANAA", "mac": "ZTEGD8C2F550", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.24, "sig1310": -31.278}, {"name": "id1196", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8D64CB8", "zone": "CANAA", "mac": "ZTEGD8D64CB8", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.54, "sig1310": -31.396}, {"name": "41094 - DROGARIA VITTAL LTDA ME", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C3F084", "zone": "CANAA", "mac": "ZTEGD8C3F084", "vlan": "100", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -27.96, "sig1310": -30.363}, {"name": "14600 - LUCAS NOGUEIRA TESINE", "olt": "TAGUATINGA-N1", "onu": "ZTEGDB0C1E86", "zone": "CANAA", "mac": "ZTEGDB0C1E86", "vlan": "100", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -23.566, "sig1310": -30.089}, {"name": "id4632", "olt": "TAGUATINGA-N1", "onu": "DD32E69AC30F", "zone": "CANAA", "mac": "DD32E69AC30F", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.98, "sig1310": -31.742}, {"name": "id1999", "olt": "TAGUATINGA-N1", "onu": "SUMCB29B86D4", "zone": "CANAA", "mac": "SUMCB29B86D4", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.204, "sig1310": -30.338}, {"name": "id34911", "olt": "TAGUATINGA-N1", "onu": "MONU007D27E1", "zone": "CANAA", "mac": "", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.432, "sig1310": -30.222}, {"name": "id29157", "olt": "TAGUATINGA-N1", "onu": "ZTEGD81E9121", "zone": "CANAA", "mac": "ZTEGD81E9121", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.814, "sig1310": -31.052}, {"name": "id38360", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8D64D7A", "zone": "CANAA", "mac": "ZTEGD8D64D7A", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.576, "sig1310": -31.742}, {"name": "id2589", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C31EBE", "zone": "CANAA", "mac": "ZTEGD8C31EBE", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.384, "sig1310": -30.216}, {"name": "id10269", "olt": "TAGUATINGA-N1", "onu": "ZKXX29AD57A8", "zone": "CANAA", "mac": "ZKXX29AD57A8", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.38, "sig1310": -31.212}, {"name": "id6199", "olt": "TAGUATINGA-N1", "onu": "ZKXX01DA254D", "zone": "CANAA", "mac": "ZKXX01DA254D", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.22, "sig1310": -31.182}, {"name": "id32954", "olt": "TAGUATINGA-N1", "onu": "MONU005D53D1", "zone": "CANAA", "mac": "MONU005D53D1", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -31.646}, {"name": "id5423", "olt": "TAGUATINGA-N1", "onu": "NV40B2B129AC", "zone": "CANAA", "mac": "NV40B2B129AC", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.586, "sig1310": -31.848}, {"name": "cliente6620", "olt": "TAGUATINGA-N1", "onu": "DE30E6F676D8", "zone": "CANAA", "mac": "DE30E6F676D8", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.58, "sig1310": -31.524}, {"name": "MARIANA BOTELHO DE MELO", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C2DAC7", "zone": "CANAA", "mac": "ZTEGD8C2DAC7", "vlan": "100", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -22.008, "sig1310": -30.95}, {"name": "id30614pt03", "olt": "TAGUATINGA-N1", "onu": "SUMCB29A8CDC", "zone": "CANAA", "mac": "SUMCB29A8CDC", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.022, "sig1310": -30.355}, {"name": "id5117", "olt": "TAGUATINGA-N1", "onu": "DD32E69BF299", "zone": "CANAA", "mac": "DD32E69BF299", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.692, "sig1310": -30.457}, {"name": "id4539", "olt": "TAGUATINGA-N1", "onu": "ZTEGD81F9805", "zone": "CANAA", "mac": "ZTEGD81F9805", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.21, "sig1310": -30.468}, {"name": "id37293", "olt": "TAGUATINGA-N1", "onu": "NV40B2B0F8E4", "zone": "CANAA", "mac": "NV40B2B0F8E4", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.862, "sig1310": -31.566}, {"name": "id3491", "olt": "TAGUATINGA-N2", "onu": "ZKXX0206954D", "zone": "CANAA", "mac": "ZKXX0206954D", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.23, "sig1310": -31.116}, {"name": "40434 - ERIC DAMASCENO RODRIGUES", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C439D1", "zone": "CANAA", "mac": "ZTEGD8C439D1", "vlan": "500", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -30.968, "sig1310": -31.45}, {"name": "id3993", "olt": "TAGUATINGA-N2", "onu": "ZKXX02066EA5", "zone": "CANAA", "mac": "ZKXX02066EA5", "vlan": "100", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.98, "sig1310": -31.866}, {"name": "id15270", "olt": "TAGUATINGA-N2", "onu": "ZTEGD36C59F6", "zone": "CANAA", "mac": "ZTEGD36C59F6", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.372, "sig1310": -30.024}, {"name": "id1556", "olt": "TAGUATINGA-N2", "onu": "SUMCB29A8D6C", "zone": "CANAA", "mac": "SUMCB29A8D6C", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.28, "sig1310": -30.468}, {"name": "Id15004", "olt": "TAGUATINGA-N2", "onu": "ZTEGCED25C94", "zone": "CANAA", "mac": "ZTEGCED25C94", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.442, "sig1310": -31.7}, {"name": "id6399", "olt": "TAGUATINGA-N2", "onu": "MONU004CE109", "zone": "CANAA", "mac": "MONU004CE109", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.092, "sig1310": -30.662}, {"name": "id13576pt02", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8D98C92", "zone": "CANAA", "mac": "ZTEGD8D98C92", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.588, "sig1310": -30.662}, {"name": "id9131", "olt": "TAGUATINGA-N2", "onu": "ZKXX0171C934", "zone": "CANAA", "mac": "ZKXX0171C934", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.98, "sig1310": -31.085}, {"name": "id38965", "olt": "TAGUATINGA-N2", "onu": "ZTEGD81FD20F", "zone": "CANAA", "mac": "ZTEGD81FD20F", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.088, "sig1310": -30.183}, {"name": "id34291", "olt": "TAGUATINGA-N2", "onu": "ZTEGCED23D37", "zone": "CANAA", "mac": "ZTEGCED23D37", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.23, "sig1310": -31.7}, {"name": "40859 - LEONIDAS FELIX MONTEIRO", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C353FE", "zone": "CANAA", "mac": "ZTEGD8C353FE", "vlan": "500", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.688, "sig1310": -30.096}, {"name": "4706 - VANDERLEI MARTINS DOS SANTOS", "olt": "TAGUATINGA-N2", "onu": "ZTEGD4B6671C", "zone": "CANAA", "mac": "ZTEGD4B6671C", "vlan": "500", "type": "F601V7.0", "status": "Warning", "sig1490": -26.98, "sig1310": -30.483}, {"name": "5036 - DIVIHOUSE COMERCIO E SERVICOS LTDA", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C43BF5", "zone": "CANAA", "mac": "ZTEGD8C43BF5", "vlan": "500", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -31.548, "sig1310": -30.155}, {"name": "id10091", "olt": "TAGUATINGA-N2", "onu": "ZKXX02067255", "zone": "CANAA", "mac": "ZKXX02067255", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.202, "sig1310": -30.915}, {"name": "id35062", "olt": "TAGUATINGA-N2", "onu": "MONU005DEBB9", "zone": "CANAA", "mac": "", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.98, "sig1310": -31.582}, {"name": "id39747", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C3152B", "zone": "CANAA", "mac": "ZTEGD8C3152B", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.376, "sig1310": -30.433}, {"name": "id35105", "olt": "TAGUATINGA-N2", "onu": "ZTEGD4B66704", "zone": "CANAA", "mac": "ZTEGD4B66704", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.57, "sig1310": -31.549}, {"name": "id10398", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C2EACD", "zone": "CANAA", "mac": "ZTEGD8C2EACD", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.56, "sig1310": -31.081}, {"name": "id39021", "olt": "TAGUATINGA-N2", "onu": "ZTEGD70F1DAC", "zone": "CANAA", "mac": "ZTEGD70F1DAC", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.23, "sig1310": -30.435}, {"name": "40466 - ELIZABETH GOMES DE MORAES", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C4524D", "zone": "CANAA", "mac": "ZTEGD8C4524D", "vlan": "500", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -26.99, "sig1310": -30.036}, {"name": "id12661", "olt": "TAGUATINGA-N2", "onu": "ZTEGD81EBB17", "zone": "CANAA", "mac": "ZTEGD81EBB17", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.814, "sig1310": -31.085}, {"name": "id5141", "olt": "TAGUATINGA-N2", "onu": "DD32E69C5B15", "zone": "CANAA", "mac": "DD32E69C5B15", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -21.67, "sig1310": -30.008}, {"name": "id36190", "olt": "TAGUATINGA-N2", "onu": "ZTEGD70F1DC0", "zone": "CANAA", "mac": "ZTEGD70F1DC0", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.666, "sig1310": -30.274}, {"name": "41966 - CARLOS HENRIQUE DA SILVA", "olt": "TAGUATINGA-N2", "onu": "ZTEGDB0C1F82", "zone": "CANAA", "mac": "ZTEGDB0C1F82", "vlan": "500", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -26.576, "sig1310": -31.968}, {"name": "id34223", "olt": "TAGUATINGA-N2", "onu": "MONU007E6389", "zone": "CANAA", "mac": "MONU007E6389", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -22.442, "sig1310": -30.036}, {"name": "THAIS GOMES DE SOUZA", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C341C0", "zone": "CANAA", "mac": "ZTEGD8C341C0", "vlan": "500", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.23, "sig1310": -30.036}, {"name": "id37995", "olt": "TAGUATINGA-N2", "onu": "NV40B2B0F2DC", "zone": "CANAA", "mac": "NV40B2B0F2DC", "vlan": "500", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.214, "sig1310": -30.0}, {"name": "id3934", "olt": "CEILANDIA", "onu": "NAVIB2B26A44", "zone": "CANAA", "mac": "NAVIB2B26A44", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.696, "sig1310": -31.201}, {"name": "id39072", "olt": "CEILANDIA", "onu": "ZTEGD82F027B", "zone": "CANAA", "mac": "ZTEGD82F027B", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.688, "sig1310": -30.788}, {"name": "13260 - MIGUEL FRANCA DE SOUSA GONCALVES", "olt": "CEILANDIA", "onu": "ZTEGD1DA83CD", "zone": "CANAA", "mac": "ZTEGD1DA83CD", "vlan": "600", "type": "F601V7.0", "status": "Warning", "sig1490": -28.532, "sig1310": -31.566}, {"name": "42382 - DIMAS LIMA", "olt": "CEILANDIA", "onu": "ZTEGD1D75B29", "zone": "CANAA", "mac": "ZTEGD1D75B29", "vlan": "600", "type": "F601V7.0", "status": "Warning", "sig1490": -26.022, "sig1310": -30.274}, {"name": "id14558", "olt": "CEILANDIA", "onu": "MONU00F7CB25", "zone": "CANAA", "mac": "MONU00F7CB25", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.692, "sig1310": -31.816}, {"name": "id39375", "olt": "CEILANDIA", "onu": "ZTEGD81EBAF9", "zone": "CANAA", "mac": "ZTEGD81EBAF9", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.96, "sig1310": -30.559}, {"name": "5014 - NELSON TAKESHI WATANABE", "olt": "CEILANDIA", "onu": "DD32E69CDC00", "zone": "CANAA", "mac": "DD32E69CDC00", "vlan": "600", "type": "010H", "status": "Warning", "sig1490": -25.682, "sig1310": -30.274}, {"name": "39689 - CLAUDIO RODRIGUES RABELO", "olt": "CEILANDIA", "onu": "ZTEGD8C36B31", "zone": "CANAA", "mac": "ZTEGD8C36B31", "vlan": "600", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -26.778, "sig1310": -31.7}, {"name": "id36871", "olt": "CEILANDIA", "onu": "NV40B2B932A4", "zone": "CANAA", "mac": "NV40B2B932A4", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.022, "sig1310": -31.682}, {"name": "id6513", "olt": "CEILANDIA", "onu": "DE376A767E44", "zone": "CANAA", "mac": "DE376A767E44", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -30.457}, {"name": "id34253", "olt": "CEILANDIA", "onu": "MONU007C6589", "zone": "CANAA", "mac": "MONU007C6589", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.862, "sig1310": -30.559}, {"name": "id38702", "olt": "CEILANDIA", "onu": "ZTEGD82EFB1A", "zone": "CANAA", "mac": "ZTEGD82EFB1A", "vlan": "600", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.696, "sig1310": -30.0}, {"name": "41855 - STELA MARES RODRIGUES FERREIRA", "olt": "CEILANDIA", "onu": "ZTEGD8C3D0D5", "zone": "CANAA", "mac": "ZTEGD8C3D0D5", "vlan": "600", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.376, "sig1310": -31.675}, {"name": "id14844", "olt": "SUDOESTE", "onu": "DB194626013E", "zone": "CANAA", "mac": "DB194626013E", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.442, "sig1310": -31.613}, {"name": "id34930", "olt": "SUDOESTE", "onu": "DACMED2052DC", "zone": "CANAA", "mac": "DACMED2052DC", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.09, "sig1310": -30.245}, {"name": "id13498", "olt": "SUDOESTE", "onu": "ZTEGD02AAE7B", "zone": "CANAA", "mac": "ZTEGD02AAE7B", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.66, "sig1310": -30.482}, {"name": "id39900", "olt": "SUDOESTE", "onu": "ZTEGD70F204A", "zone": "CANAA", "mac": "ZTEGD70F204A", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -28.862, "sig1310": -31.317}, {"name": "41734 - MARCIO ALEXANDRE SILVA MUNIZ", "olt": "SUDOESTE", "onu": "ZTEGDB0C1BF4", "zone": "CANAA", "mac": "ZTEGDB0C1BF4", "vlan": "700", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -25.23, "sig1310": -30.866}, {"name": "id38695", "olt": "SUDOESTE", "onu": "ZTEGD81FD1F6", "zone": "CANAA", "mac": "ZTEGD81FD1F6", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.456, "sig1310": -30.969}, {"name": "id9034", "olt": "SUDOESTE", "onu": "DACMED1FCF10", "zone": "CANAA", "mac": "DACMED1FCF10", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.188, "sig1310": -30.271}, {"name": "id40235", "olt": "SUDOESTE", "onu": "ZTEGD8C2DD5B", "zone": "CANAA", "mac": "ZTEGD8C2DD5B", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.012, "sig1310": -30.346}, {"name": "id10366", "olt": "SUDOESTE", "onu": "MONU007D32A1", "zone": "CANAA", "mac": "MONU007D32A1", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.22, "sig1310": -30.294}, {"name": "id34997", "olt": "SUDOESTE", "onu": "DACMED205578", "zone": "CANAA", "mac": "DACMED205578", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.188, "sig1310": -31.863}, {"name": "41357 - EDUARDO ANDRE DO NASCIMENTO MORAIS", "olt": "SUDOESTE", "onu": "NV40B2B09DB4", "zone": "CANAA", "mac": "NV40B2B09DB4", "vlan": "700", "type": "010H", "status": "Warning", "sig1490": -28.54, "sig1310": -31.031}, {"name": "id39403", "olt": "SUDOESTE", "onu": "ZTEGD81E9109", "zone": "CANAA", "mac": "ZTEGD81E9109", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.98, "sig1310": -30.26}, {"name": "id9232pt02", "olt": "SUDOESTE", "onu": "ZTEGD8C45E1A", "zone": "CANAA", "mac": "ZTEGD8C45E1A", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.202, "sig1310": -30.103}, {"name": "id39598", "olt": "SUDOESTE", "onu": "ZTEGD8C34A98", "zone": "CANAA", "mac": "ZTEGD8C34A98", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.468, "sig1310": -30.453}, {"name": "36639 - VALDENORA SANTOS CHAVES E SILVA", "olt": "SUDOESTE", "onu": "NV40B2B90D84", "zone": "CANAA", "mac": "NV40B2B90D84", "vlan": "700", "type": "SM162242-GHDU6HR-TX4", "status": "Warning", "sig1490": -26.198, "sig1310": -30.866}, {"name": "id13363", "olt": "SUDOESTE", "onu": "DACM91D409F2", "zone": "CANAA", "mac": "DACM91D409F2", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.198, "sig1310": -31.508}, {"name": "id39483", "olt": "SUDOESTE", "onu": "ZTEGD81FE9F5", "zone": "CANAA", "mac": "ZTEGD81FE9F5", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.948, "sig1310": -30.039}, {"name": "id34725", "olt": "SUDOESTE", "onu": "ZTEGD1BC67E0", "zone": "CANAA", "mac": "ZTEGD1BC67E0", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.08, "sig1310": -30.036}, {"name": "id38155", "olt": "SUDOESTE", "onu": "ZTEGD8D98BBF", "zone": "CANAA", "mac": "ZTEGD8D98BBF", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.852, "sig1310": -31.36}, {"name": "39706 - LEONARDO JOSE CORREA DA COSTA", "olt": "SUDOESTE", "onu": "ZTEGD8C423D8", "zone": "CANAA", "mac": "ZTEGD8C423D8", "vlan": "700", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -24.948, "sig1310": -30.379}, {"name": "id39639", "olt": "SUDOESTE", "onu": "ZTEGD8C3154F", "zone": "CANAA", "mac": "ZTEGD8C3154F", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.21, "sig1310": -30.721}, {"name": "id9885", "olt": "SUDOESTE", "onu": "DE20E6977A8C", "zone": "CANAA", "mac": "DE20E6977A8C", "vlan": "700", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.442, "sig1310": -30.044}, {"name": "41048 - GABRIELA MACHADO PAIS", "olt": "SUDOESTE", "onu": "ZTEGD8C3DDE6", "zone": "CANAA", "mac": "ZTEGD8C3DDE6", "vlan": "700", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -27.212, "sig1310": -30.942}, {"name": "41790 - VIVIANE DE JESUS UEDA DIAS", "olt": "SUDOESTE", "onu": "ZTEGDA618EC9", "zone": "CANAA", "mac": "ZTEGDA618EC9", "vlan": "700", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -27.96, "sig1310": -30.969}, {"name": "id39015", "olt": "SIA", "onu": "ZTEGD70F1EB9", "zone": "CANAA", "mac": "ZTEGD70F1EB9", "vlan": "800", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.198, "sig1310": -30.969}, {"name": "40350 - PEDRO HENRIQUE VALADARES MACIEL DE OLIVEIRA", "olt": "VICENTE PIRES", "onu": "ZTEGD8C42466", "zone": "CANAA", "mac": "ZTEGD8C42466", "vlan": "1000", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -28.54, "sig1310": -31.433}, {"name": "id40134", "olt": "VICENTE PIRES", "onu": "ZTEGD8C41F23", "zone": "CANAA", "mac": "ZTEGD8C41F23", "vlan": "1000", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.56, "sig1310": -31.433}, {"name": "id37676", "olt": "ARNIQUEIRAS", "onu": "NV40B2B106E4", "zone": "CANAA", "mac": "NV40B2B106E4", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.99, "sig1310": -30.457}, {"name": "id40141", "olt": "ARNIQUEIRAS", "onu": "ZTEGD8C45C33", "zone": "CANAA", "mac": "ZTEGD8C45C33", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -22.924, "sig1310": -30.366}, {"name": "id37658", "olt": "ARNIQUEIRAS", "onu": "ZTEGD8D64C43", "zone": "CANAA", "mac": "ZTEGD8D64C43", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.528, "sig1310": -31.549}, {"name": "41080 - JURACY ALVES DE MOURA", "olt": "ARNIQUEIRAS", "onu": "NV40B2AF0054", "zone": "CANAA", "mac": "NV40B2AF0054", "vlan": "900", "type": "010H", "status": "Warning", "sig1490": -24.09, "sig1310": -30.366}, {"name": "42096 - MARIA LUCIANA DA SILVA RIBEIRO", "olt": "ARNIQUEIRAS", "onu": "ZTEGD8C3B664", "zone": "CANAA", "mac": "ZTEGD8C3B664", "vlan": "900", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -24.09, "sig1310": -30.866}, {"name": "id35693", "olt": "ARNIQUEIRAS", "onu": "MONU005DE639", "zone": "CANAA", "mac": "MONU005DE639", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -30.958, "sig1310": -30.183}, {"name": "id21697pt02", "olt": "ARNIQUEIRAS", "onu": "DACMED2045E4", "zone": "CANAA", "mac": "DACMED2045E4", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -25.088, "sig1310": -30.764}, {"name": "id39284", "olt": "ARNIQUEIRAS", "onu": "ZTEGD81F4A1F", "zone": "CANAA", "mac": "ZTEGD81F4A1F", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.666, "sig1310": -30.457}, {"name": "41348 - FABIANO ANTONIO FERREIRA", "olt": "ARNIQUEIRAS", "onu": "ZTEGD8D64C2B", "zone": "CANAA", "mac": "ZTEGD8D64C2B", "vlan": "900", "type": "F6600PV9.0.12", "status": "Warning", "sig1490": -24.56, "sig1310": -30.457}, {"name": "id36210", "olt": "ARNIQUEIRAS", "onu": "NV40B2B0ADFC", "zone": "CANAA", "mac": "NV40B2B0ADFC", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -33.01, "sig1310": -31.085}, {"name": "id14253pt02", "olt": "ARNIQUEIRAS", "onu": "ZTEGD82F1408", "zone": "CANAA", "mac": "ZTEGD82F1408", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.212, "sig1310": -30.457}, {"name": "id28520", "olt": "ARNIQUEIRAS", "onu": "ZTEGD8C41C1E", "zone": "CANAA", "mac": "ZTEGD8C41C1E", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -29.588, "sig1310": -30.969}, {"name": "id39214", "olt": "ARNIQUEIRAS", "onu": "ZTEGD81EAD84", "zone": "CANAA", "mac": "ZTEGD81EAD84", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -26.99, "sig1310": -31.085}, {"name": "wandson12403", "olt": "ARNIQUEIRAS", "onu": "NV40B2B0AACC", "zone": "CANAA", "mac": "NV40B2B0AACC", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.96, "sig1310": -31.33}, {"name": "41318 - CARLOS RENATO SACRAMENTO E SILVA", "olt": "ARNIQUEIRAS", "onu": "NV40B2B0F024", "zone": "CANAA", "mac": "NV40B2B0F024", "vlan": "900", "type": "010H", "status": "Warning", "sig1490": -24.56, "sig1310": -31.572}, {"name": "13981 - IURI OLIVEIRA DE SANTANA", "olt": "ARNIQUEIRAS", "onu": "ZTEGD8C2D815", "zone": "CANAA", "mac": "ZTEGD8C2D815", "vlan": "900", "type": "F6201BV9.3.12", "status": "Warning", "sig1490": -26.022, "sig1310": -30.155}, {"name": "id39035", "olt": "ARNIQUEIRAS", "onu": "ZTEGD8201938", "zone": "CANAA", "mac": "ZTEGD8201938", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -24.09, "sig1310": -31.085}, {"name": "id34977", "olt": "ARNIQUEIRAS", "onu": "SUMCB29B8824", "zone": "CANAA", "mac": "SUMCB29B8824", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -23.98, "sig1310": -30.835}, {"name": "41989 - FLAVIA RIBEIRO SOARES MARINS", "olt": "ARNIQUEIRAS", "onu": "NV40B2AED42C", "zone": "CANAA", "mac": "NV40B2AED42C", "vlan": "900", "type": "010H", "status": "Warning", "sig1490": -29.586, "sig1310": -30.437}, {"name": "id39404", "olt": "ARNIQUEIRAS", "onu": "ZTEGD81EBAFB", "zone": "CANAA", "mac": "ZTEGD81EBAFB", "vlan": "900", "type": "ZTE-F600", "status": "Warning", "sig1490": -27.448, "sig1310": -31.249}, {"name": "cliente5774", "olt": "AGUAS CLARAS-1", "onu": "NV40B2B931A4", "zone": "CANAA", "mac": "NV40B2B931A4", "vlan": "300", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.696, "sig1310": -33.57}, {"name": "id39470", "olt": "AGUAS CLARAS-1", "onu": "ZTEGD81F9836", "zone": "CANAA", "mac": "ZTEGD81F9836", "vlan": "300", "type": "ZTE-F600", "status": "Critical", "sig1490": -29.588, "sig1310": -33.146}, {"name": "40506 - CIRENE VIEIRA", "olt": "AGUAS CLARAS-1", "onu": "ZTEGD8C45BF3", "zone": "CANAA", "mac": "ZTEGD8C45BF3", "vlan": "300", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -27.212, "sig1310": -32.009}, {"name": "cliente9218", "olt": "AGUAS CLARAS-1", "onu": "ZTEGD1CB0430", "zone": "CANAA", "mac": "ZTEGD1CB0430", "vlan": "300", "type": "ZTE-F600", "status": "Critical", "sig1490": -31.54, "sig1310": -32.33}, {"name": "id38146", "olt": "AGUAS CLARAS-1", "onu": "ZTEGD15B1F70", "zone": "CANAA", "mac": "ZTEGD15B1F70", "vlan": "300", "type": "ZTE-F600", "status": "Critical", "sig1490": -32.216, "sig1310": -32.113}, {"name": "cliente11224", "olt": "AGUAS CLARAS-1", "onu": "ZKXX01DA2135", "zone": "CANAA", "mac": "ZKXX01DA2135", "vlan": "300", "type": "ZTE-F621", "status": "Critical", "sig1490": -29.202, "sig1310": -32.113}, {"name": "cliente578", "olt": "AGUAS CLARAS-1", "onu": "NV40B2AE69EC", "zone": "CANAA", "mac": "NV40B2AE69EC", "vlan": "300", "type": "ZTE-F621", "status": "Critical", "sig1490": -31.548, "sig1310": -33.591}, {"name": "id32950", "olt": "AGUAS CLARAS-1", "onu": "ZTEGD1D77147", "zone": "CANAA", "mac": "ZTEGD1D77147", "vlan": "300", "type": "ZTE-F621", "status": "Critical", "sig1490": -27.21, "sig1310": -32.851}, {"name": "cliente20772", "olt": "AGUAS CLARAS-1", "onu": "NV40B2B90824", "zone": "CANAA", "mac": "NV40B2B90824", "vlan": "300", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.862, "sig1310": -33.239}, {"name": "id36558", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B937B4", "zone": "CANAA", "mac": "NV40B2B937B4", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -29.586, "sig1310": -33.012}, {"name": "id35431", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B10EFC", "zone": "CANAA", "mac": "NV40B2B10EFC", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.968, "sig1310": -33.01}, {"name": "id38116", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8D64C8A", "zone": "CANAA", "mac": "ZTEGD8D64C8A", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.54, "sig1310": -33.01}, {"name": "cliente15115", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81E90CD", "zone": "CANAA", "mac": "ZTEGD81E90CD", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.212, "sig1310": -33.01}, {"name": "cliente15167", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81EBB1B", "zone": "CANAA", "mac": "ZTEGD81EBB1B", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.968, "sig1310": -33.01}, {"name": "id13596", "olt": "AGUAS CLARAS-2", "onu": "VSOL0023B2B5", "zone": "CANAA", "mac": "VSOL0023B2B5", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.442, "sig1310": -33.01}, {"name": "13121 - RACHEL MARINHO BONAMINI FIGUEIRA", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C42084", "zone": "CANAA", "mac": "ZTEGD8C42084", "vlan": "200", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -27.696, "sig1310": -33.01}, {"name": "cliente4697", "olt": "AGUAS CLARAS-2", "onu": "MONU007B85E1", "zone": "CANAA", "mac": "MONU007B85E1", "vlan": "200", "type": "ZTE-F621", "status": "Critical", "sig1490": -30.0, "sig1310": -33.01}, {"name": "35042 - RAPHAEL TEIXEIRA FERNANDES", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C45782", "zone": "CANAA", "mac": "ZTEGD8C45782", "vlan": "200", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -30.968, "sig1310": -33.01}, {"name": "cliente18820", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA35E5", "zone": "CANAA", "mac": "ZKXX01DA35E5", "vlan": "200", "type": "ZTE-F621", "status": "Critical", "sig1490": -26.98, "sig1310": -33.01}, {"name": "id25408", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B90E44", "zone": "CANAA", "mac": "NV40B2B90E44", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.0, "sig1310": -33.01}, {"name": "id35322", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD1D7878F", "zone": "CANAA", "mac": "ZTEGD1D7878F", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -24.682, "sig1310": -32.218}, {"name": "id39382", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD81FFF38", "zone": "CANAA", "mac": "ZTEGD81FFF38", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.212, "sig1310": -33.01}, {"name": "cliente10583", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA1585", "zone": "CANAA", "mac": "ZKXX01DA1585", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.23, "sig1310": -32.084}, {"name": "id32855", "olt": "AGUAS CLARAS-2", "onu": "DE20E69762CA", "zone": "CANAA", "mac": "DE20E69762CA", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.958, "sig1310": -32.851}, {"name": "cliente8993", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA2D7D", "zone": "CANAA", "mac": "ZKXX01DA2D7D", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -29.202, "sig1310": -33.591}, {"name": "id36643", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B90DBC", "zone": "CANAA", "mac": "NV40B2B90DBC", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -31.548, "sig1310": -33.979}, {"name": "cliente18436", "olt": "AGUAS CLARAS-2", "onu": "DD32E69AB334", "zone": "CANAA", "mac": "DD32E69AB334", "vlan": "200", "type": "ZTE-F621", "status": "Critical", "sig1490": -27.952, "sig1310": -32.972}, {"name": "cliente8172", "olt": "AGUAS CLARAS-2", "onu": "ZKXX01DA0D05", "zone": "CANAA", "mac": "ZKXX01DA0D05", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.952, "sig1310": -32.798}, {"name": "id34676", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD4B66712", "zone": "CANAA", "mac": "ZTEGD4B66712", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.862, "sig1310": -34.559}, {"name": "id40213", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C420D5", "zone": "CANAA", "mac": "ZTEGD8C420D5", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -24.09, "sig1310": -32.718}, {"name": "25824 - RODRIGO ALMEIDA LIBERATO", "olt": "AGUAS CLARAS-2", "onu": "DB194628FED2", "zone": "CANAA", "mac": "DB194628FED2", "vlan": "200", "type": "010H", "status": "Critical", "sig1490": -26.022, "sig1310": -32.242}, {"name": "id38018", "olt": "AGUAS CLARAS-2", "onu": "NV40B2B10CFC", "zone": "CANAA", "mac": "NV40B2B10CFC", "vlan": "200", "type": "ZTE-F600", "status": "Critical", "sig1490": -33.01, "sig1310": -33.397}, {"name": "41062 - MARCUS VINICIUS ANTUNES DE MORAES", "olt": "AGUAS CLARAS-2", "onu": "ZTEGD8C2E0C0", "zone": "CANAA", "mac": "ZTEGD8C2E0C0", "vlan": "200", "type": "010H", "status": "Critical", "sig1490": -31.548, "sig1310": -33.204}, {"name": "24722 - KEYLA PATRICIA PADILHA CARVALHO", "olt": "AGUAS CLARAS-3", "onu": "NV21B2B0183C", "zone": "CANAA", "mac": "NV21B2B0183C", "vlan": "400", "type": "010H", "status": "Critical", "sig1490": -29.208, "sig1310": -32.535}, {"name": "42196 - WILLIAN GABRIEL VASCONCELOS BARBOSA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGDB0C1D37", "zone": "CANAA", "mac": "ZTEGDB0C1D37", "vlan": "400", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -30.968, "sig1310": -33.01}, {"name": "cliente13689", "olt": "AGUAS CLARAS-3", "onu": "DD32E69B01B5", "zone": "CANAA", "mac": "DD32E69B01B5", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.952, "sig1310": -34.147}, {"name": "cliente11404", "olt": "AGUAS CLARAS-3", "onu": "DD32E6512EE8", "zone": "CANAA", "mac": "DD32E6512EE8", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.57, "sig1310": -32.596}, {"name": "11455 - FABIANE MENDES DA SILVA ARAUJO", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8C4216A", "zone": "CANAA", "mac": "ZTEGD8C4216A", "vlan": "400", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -29.588, "sig1310": -33.979}, {"name": "cliente15204", "olt": "AGUAS CLARAS-3", "onu": "DE30E6F776BF", "zone": "CANAA", "mac": "DE30E6F776BF", "vlan": "400", "type": "ZTE-F621", "status": "Critical", "sig1490": -23.872, "sig1310": -32.218}, {"name": "id32644", "olt": "AGUAS CLARAS-3", "onu": "NV21B2B03AE4", "zone": "CANAA", "mac": "NV21B2B03AE4", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -35.228, "sig1310": -32.697}, {"name": "id35292", "olt": "AGUAS CLARAS-3", "onu": "NAVIB2B27354", "zone": "CANAA", "mac": "", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.24, "sig1310": -32.376}, {"name": "41869 - MARCUS VINICIUS MAGALHAES DE MORAES", "olt": "AGUAS CLARAS-3", "onu": "ZTEGDA612883", "zone": "CANAA", "mac": "ZTEGDA612883", "vlan": "400", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -25.688, "sig1310": -32.109}, {"name": "id38255", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8D98CC7", "zone": "CANAA", "mac": "ZTEGD8D98CC7", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -25.688, "sig1310": -32.084}, {"name": "id14331", "olt": "AGUAS CLARAS-3", "onu": "ZKXX01DA103D", "zone": "CANAA", "mac": "ZKXX01DA103D", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -24.55, "sig1310": -33.01}, {"name": "id13754", "olt": "AGUAS CLARAS-3", "onu": "ZKXX29AD3A08", "zone": "CANAA", "mac": "ZKXX29AD3A08", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -24.682, "sig1310": -32.693}, {"name": "id11432", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD82EFB1C", "zone": "CANAA", "mac": "ZTEGD82EFB1C", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -25.23, "sig1310": -33.01}, {"name": "id15427", "olt": "AGUAS CLARAS-3", "onu": "DACM91D428BA", "zone": "CANAA", "mac": "DACM91D428BA", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -24.09, "sig1310": -32.535}, {"name": "41942 - WITOR BEZERRA DA SILVA", "olt": "AGUAS CLARAS-3", "onu": "ZTEGDB05FEFC", "zone": "CANAA", "mac": "ZTEGDB05FEFC", "vlan": "400", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -24.318, "sig1310": -32.218}, {"name": "id14958", "olt": "AGUAS CLARAS-3", "onu": "MRWY3C0092A0", "zone": "CANAA", "mac": "MRWY3C0092A0", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -25.08, "sig1310": -33.423}, {"name": "cliente18545", "olt": "AGUAS CLARAS-3", "onu": "VSOL00F8C97F", "zone": "CANAA", "mac": "", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -32.208, "sig1310": -33.054}, {"name": "id15156", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD8D64C23", "zone": "CANAA", "mac": "ZTEGD8D64C23", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -25.528, "sig1310": -32.596}, {"name": "id12517", "olt": "AGUAS CLARAS-3", "onu": "MONU005DE741", "zone": "CANAA", "mac": "MONU005DE741", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.23, "sig1310": -33.233}, {"name": "id24565", "olt": "AGUAS CLARAS-3", "onu": "ZTEGD70F1EDB", "zone": "CANAA", "mac": "ZTEGD70F1EDB", "vlan": "400", "type": "ZTE-F600", "status": "Critical", "sig1490": -24.56, "sig1310": -32.084}, {"name": "40239 - PEREIRA ADMINISTRACAO E PARTICIPACOES LTDA", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C41C0E", "zone": "CANAA", "mac": "ZTEGD8C41C0E", "vlan": "100", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -28.862, "sig1310": -33.01}, {"name": "id34896", "olt": "TAGUATINGA-N1", "onu": "ZTEGD1BC3362", "zone": "CANAA", "mac": "ZTEGD1BC3362", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.862, "sig1310": -33.01}, {"name": "id5618", "olt": "TAGUATINGA-N1", "onu": "ZTEGD15B1E72", "zone": "CANAA", "mac": "ZTEGD15B1E72", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.212, "sig1310": -32.535}, {"name": "id33190", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C2EBF7", "zone": "CANAA", "mac": "ZTEGD8C2EBF7", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.24, "sig1310": -32.084}, {"name": "id863", "olt": "TAGUATINGA-N1", "onu": "DD18B3D3D3B4", "zone": "CANAA", "mac": "DD18B3D3D3B4", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -23.092, "sig1310": -33.01}, {"name": "id5751", "olt": "TAGUATINGA-N1", "onu": "NV40B2B91D2C", "zone": "CANAA", "mac": "", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.24, "sig1310": -33.01}, {"name": "id39578", "olt": "TAGUATINGA-N1", "onu": "ZTEGD4B66748", "zone": "CANAA", "mac": "", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -29.58, "sig1310": -33.01}, {"name": "39152 - MARIA LIONETE SILVA PUTTINI RAMOS", "olt": "TAGUATINGA-N1", "onu": "ZTEGD98D0A35", "zone": "CANAA", "mac": "ZTEGD98D0A35", "vlan": "100", "type": "F6600PV9.0.12", "status": "Critical", "sig1490": null, "sig1310": -33.01}, {"name": "id6844", "olt": "TAGUATINGA-N1", "onu": "DD32E69C689E", "zone": "CANAA", "mac": "", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.38, "sig1310": -33.01}, {"name": "id751", "olt": "TAGUATINGA-N1", "onu": "DB1946258EAE", "zone": "CANAA", "mac": "DB1946258EAE", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -40.0, "sig1310": -33.01}, {"name": "id6889", "olt": "TAGUATINGA-N1", "onu": "MONU007BB429", "zone": "CANAA", "mac": "MONU007BB429", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.192, "sig1310": -32.851}, {"name": "id12546", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C344D9", "zone": "CANAA", "mac": "ZTEGD8C344D9", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.212, "sig1310": -33.01}, {"name": "id10273", "olt": "TAGUATINGA-N1", "onu": "MONU007E5C01", "zone": "CANAA", "mac": "MONU007E5C01", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.692, "sig1310": -32.084}, {"name": "id13265", "olt": "TAGUATINGA-N1", "onu": "NV40B2AEDCF4", "zone": "CANAA", "mac": "NV40B2AEDCF4", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.0, "sig1310": -32.376}, {"name": "id15724", "olt": "TAGUATINGA-N1", "onu": "ZTEGD0284236", "zone": "CANAA", "mac": "ZTEGD0284236", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.442, "sig1310": -33.01}, {"name": "5149 - BM ARMARINHO LTDA", "olt": "TAGUATINGA-N1", "onu": "NV21B2B1FD2C", "zone": "CANAA", "mac": "NV21B2B1FD2C", "vlan": "100", "type": "SM164242-GHDUHR-T21C", "status": "Critical", "sig1490": -22.926, "sig1310": -33.01}, {"name": "41853 - MERIELEN PEREIRA DOS SANTOS MIRANDA", "olt": "TAGUATINGA-N1", "onu": "ZTEGDB0C1FC7", "zone": "CANAA", "mac": "ZTEGDB0C1FC7", "vlan": "100", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -25.688, "sig1310": -32.218}, {"name": "id131", "olt": "TAGUATINGA-N1", "onu": "ZKXX0171C884", "zone": "CANAA", "mac": "ZKXX0171C884", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.532, "sig1310": -33.01}, {"name": "id15916", "olt": "TAGUATINGA-N1", "onu": "ZTEGD02842D3", "zone": "CANAA", "mac": "ZTEGD02842D3", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.23, "sig1310": -32.112}, {"name": "id10244pt02", "olt": "TAGUATINGA-N1", "onu": "NV40B2B93274", "zone": "CANAA", "mac": "NV40B2B93274", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.696, "sig1310": -32.041}, {"name": "id39519", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C3552B", "zone": "CANAA", "mac": "ZTEGD8C3552B", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -31.548, "sig1310": -35.304}, {"name": "id9387", "olt": "TAGUATINGA-N1", "onu": "NV40B2B10954", "zone": "CANAA", "mac": "NV40B2B10954", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -29.586, "sig1310": -32.557}, {"name": "40125 - CAROLINE VIEIRA RODRIGUES", "olt": "TAGUATINGA-N1", "onu": "ZTEGC8C97AA5", "zone": "CANAA", "mac": "ZTEGC8C97AA5", "vlan": "100", "type": "F670LV1.1.01", "status": "Critical", "sig1490": -27.696, "sig1310": -33.373}, {"name": "id14608", "olt": "TAGUATINGA-N1", "onu": "ZKXX019E2D07", "zone": "CANAA", "mac": "ZKXX019E2D07", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.57, "sig1310": -33.467}, {"name": "id15067", "olt": "TAGUATINGA-N1", "onu": "ZTEGCED25CD2", "zone": "CANAA", "mac": "ZTEGCED25CD2", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.192, "sig1310": -33.233}, {"name": "41210 - JOSE VICTOR DE AGUIAR SAMPAIO", "olt": "TAGUATINGA-N1", "onu": "NV40B2B91974", "zone": "CANAA", "mac": "NV40B2B91974", "vlan": "100", "type": "010H", "status": "Critical", "sig1490": -27.214, "sig1310": -32.076}, {"name": "id1651", "olt": "TAGUATINGA-N1", "onu": "ZTEGD4B65868", "zone": "CANAA", "mac": "ZTEGD4B65868", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.23, "sig1310": -34.207}, {"name": "id15801", "olt": "TAGUATINGA-N1", "onu": "ZTEGD1DA5A05", "zone": "CANAA", "mac": "ZTEGD1DA5A05", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.442, "sig1310": -32.925}, {"name": "32561 - DANILO CASTRO SOARES", "olt": "TAGUATINGA-N1", "onu": "MONU0078E3D1", "zone": "CANAA", "mac": "MONU0078E3D1", "vlan": "100", "type": "010H", "status": "Critical", "sig1490": -27.442, "sig1310": -32.557}, {"name": "id13545", "olt": "TAGUATINGA-N1", "onu": "FTTH4087030D", "zone": "CANAA", "mac": "FTTH4087030D", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -23.012, "sig1310": -32.309}, {"name": "id8873", "olt": "TAGUATINGA-N1", "onu": "ZTEGD70F1DEB", "zone": "CANAA", "mac": "ZTEGD70F1DEB", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.022, "sig1310": -32.155}, {"name": "id2652", "olt": "TAGUATINGA-N1", "onu": "NV21B2B204BC", "zone": "CANAA", "mac": "NV21B2B204BC", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -32.218, "sig1310": -35.182}, {"name": "id12670", "olt": "TAGUATINGA-N1", "onu": "DE20E6976624", "zone": "CANAA", "mac": "DE20E6976624", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -29.202, "sig1310": -32.917}, {"name": "id38902", "olt": "TAGUATINGA-N1", "onu": "ZTEGD70F1DDA", "zone": "CANAA", "mac": "ZTEGD70F1DDA", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.24, "sig1310": -34.445}, {"name": "id13956", "olt": "TAGUATINGA-N1", "onu": "VSOL0023CD35", "zone": "CANAA", "mac": "VSOL0023CD35", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.442, "sig1310": -32.58}, {"name": "42308 - JONATHAN OLIVEIRA DA CUNHA", "olt": "TAGUATINGA-N1", "onu": "ZTEGDB0C1C8E", "zone": "CANAA", "mac": "ZTEGDB0C1C8E", "vlan": "100", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -27.96, "sig1310": -33.107}, {"name": "id14954", "olt": "TAGUATINGA-N1", "onu": "ZTEGD1CA74F9", "zone": "CANAA", "mac": "ZTEGD1CA74F9", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.0, "sig1310": -33.428}, {"name": "id2531", "olt": "TAGUATINGA-N1", "onu": "ZTEGD8C347DF", "zone": "CANAA", "mac": "ZTEGD8C347DF", "vlan": "100", "type": "ZTE-F600", "status": "Critical", "sig1490": -31.548, "sig1310": -34.729}, {"name": "34403 - WILLIAN BRAGA DA COSTA", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C3B40B", "zone": "CANAA", "mac": "ZTEGD8C3B40B", "vlan": "500", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -28.54, "sig1310": -33.397}, {"name": "38576 - LUCIA REGINA VERISSIMO DO NASCIMENTO", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8D64CA0", "zone": "CANAA", "mac": "ZTEGD8D64CA0", "vlan": "500", "type": "F6600PV9.0.12", "status": "Critical", "sig1490": -29.588, "sig1310": -32.084}, {"name": "40938 - WILLIAN SOARES DE OLIVEIRA COSTA", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8CBC79E", "zone": "CANAA", "mac": "ZTEGD8CBC79E", "vlan": "500", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -28.862, "sig1310": -33.572}, {"name": "id14789", "olt": "TAGUATINGA-N2", "onu": "ZTEGD1BC4629", "zone": "CANAA", "mac": "ZTEGD1BC4629", "vlan": "500", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.958, "sig1310": -33.805}, {"name": "40597 - FELIPE SOARES DE ARAUJO", "olt": "TAGUATINGA-N2", "onu": "ZTEGD8C35D8D", "zone": "CANAA", "mac": "ZTEGD8C35D8D", "vlan": "500", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -27.696, "sig1310": -32.767}, {"name": "15799 - ANA BEATRIZ SOUSA SA", "olt": "TAGUATINGA-N2", "onu": "ZTEGD1D7823E", "zone": "CANAA", "mac": "ZTEGD1D7823E", "vlan": "500", "type": "F601V7.0", "status": "Critical", "sig1490": -28.862, "sig1310": -40.0}, {"name": "id34623", "olt": "TAGUATINGA-N2", "onu": "ZTEGD4B142BA", "zone": "CANAA", "mac": "ZTEGD4B142BA", "vlan": "500", "type": "ZTE-F600", "status": "Critical", "sig1490": -23.97, "sig1310": -32.376}, {"name": "id33813", "olt": "TAGUATINGA-N2", "onu": "ZTEGD4B665B1", "zone": "CANAA", "mac": "ZTEGD4B665B1", "vlan": "500", "type": "ZTE-F600", "status": "Critical", "sig1490": -28.862, "sig1310": -33.877}, {"name": "id5323", "olt": "CEILANDIA", "onu": "DD32E69C676C", "zone": "CANAA", "mac": "DD32E69C676C", "vlan": "600", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.692, "sig1310": -33.01}, {"name": "38544 - JOSE LEONARDO LOPES DE SOUSA", "olt": "CEILANDIA", "onu": "ZTEGD8D64D36", "zone": "CANAA", "mac": "ZTEGD8D64D36", "vlan": "600", "type": "F6600PV9.0.12", "status": "Critical", "sig1490": -26.198, "sig1310": -32.535}, {"name": "id10659", "olt": "CEILANDIA", "onu": "MONU007C7A49", "zone": "CANAA", "mac": "MONU007C7A49", "vlan": "600", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.0, "sig1310": -33.01}, {"name": "42378 - JOSEANE AMORIM DE MELO", "olt": "CEILANDIA", "onu": "ZTEGD1CB3846", "zone": "CANAA", "mac": "ZTEGD1CB3846", "vlan": "600", "type": "F601V7.0", "status": "Critical", "sig1490": -27.21, "sig1310": -34.379}, {"name": "id1682", "olt": "SUDOESTE", "onu": "NV40B2B90DCC", "zone": "CANAA", "mac": "NV40B2B90DCC", "vlan": "700", "type": "ZTE-F600", "status": "Critical", "sig1490": -27.214, "sig1310": -32.218}, {"name": "id10512", "olt": "SUDOESTE", "onu": "ZTEGD1BC2EF3", "zone": "CANAA", "mac": "ZTEGD1BC2EF3", "vlan": "700", "type": "ZTE-F600", "status": "Critical", "sig1490": -25.372, "sig1310": -32.376}, {"name": "id9217", "olt": "SUDOESTE", "onu": "NV40B2B0AECC", "zone": "CANAA", "mac": "NV40B2B0AECC", "vlan": "700", "type": "ZTE-F600", "status": "Critical", "sig1490": -30.456, "sig1310": -32.657}, {"name": "9211 - ACF GUIMARAES ACOUGUE E CHURRASCO DAS TONELADAS LTDA", "olt": "SUDOESTE", "onu": "ZTEGD82EFADE", "zone": "CANAA", "mac": "ZTEGD82EFADE", "vlan": "700", "type": "F6600PV9.0.12", "status": "Critical", "sig1490": -27.212, "sig1310": -32.468}, {"name": "id35910", "olt": "SUDOESTE", "onu": "SUMCB29AB41C", "zone": "CANAA", "mac": "SUMCB29AB41C", "vlan": "700", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.778, "sig1310": -33.707}, {"name": "41130 - YASMIN MIRANDA DOS SANTOS", "olt": "SUDOESTE", "onu": "ZTEGD8C35F9A", "zone": "CANAA", "mac": "ZTEGD8C35F9A", "vlan": "700", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -31.548, "sig1310": -33.525}, {"name": "40803 - VIRGINIA LANA DOS SANTOS CHALUB", "olt": "SUDOESTE", "onu": "ZTEGD8C43CC5", "zone": "CANAA", "mac": "ZTEGD8C43CC5", "vlan": "700", "type": "F6201BV9.3.12", "status": "Critical", "sig1490": -29.21, "sig1310": -33.852}, {"name": "id37470", "olt": "SUDOESTE", "onu": "NV40B2B9072C", "zone": "CANAA", "mac": "NV40B2B9072C", "vlan": "700", "type": "ZTE-F600", "status": "Critical", "sig1490": -26.022, "sig1310": -33.001}, {"name": "id36261", "olt": "SUDOESTE", "onu": "NV40B2B0F4C4", "zone": "CANAA", "mac": "NV40B2B0F4C4", "vlan": "700", "type": "ZTE-F600", "status": "Critical", "sig1490": -19.956, "sig1310": -32.009}, {"name": "38988 - GABRIEL VIDAL BRITO", "olt": "VICENTE PIRES", "onu": "ZTEGD82EFAD3", "zone": "CANAA", "mac": "ZTEGD82EFAD3", "vlan": "1000", "type": "F6600PV9.0.12", "status": "Critical", "sig1490": -30.456, "sig1310": -33.01}, {"name": "id36568", "olt": "ARNIQUEIRAS", "onu": "NV40B2B121F4", "zone": "CANAA", "mac": "NV40B2B121F4", "vlan": "900", "type": "ZTE-F600", "status": "Critical", "sig1490": -29.586, "sig1310": -32.559}, {"name": "id34837", "olt": "ARNIQUEIRAS", "onu": "ZTEGD1BC138A", "zone": "CANAA", "mac": "ZTEGD1BC138A", "vlan": "900", "type": "ZTE-F600", "status": "Critical", "sig1490": -25.22, "sig1310": -35.228}];
+const resolved = new Set(JSON.parse(localStorage.getItem('canaa_resolved') || '[]'));
+let sortCol = 'sig1490', sortDir = 'asc';
+
+function save() {
+  try { localStorage.setItem('canaa_resolved', JSON.stringify([...resolved])); } catch(e) {}
+}
+
+function pct(sig) {
+  if (sig === null) return 0;
+  return Math.min(100, Math.max(0, (Math.abs(sig) - 19) / 21 * 100));
+}
+
+function sigCell(sig, isCrit, isOlt, isRes) {
+  if (sig === null) return `<td><div class="sig-wrap"><span class="sig-num na">N/A</span></div></td>`;
+  const cls  = isRes ? '' : (isOlt ? 'olt' : (isCrit ? 'crit' : 'warn'));
+  const bar  = isRes ? 'rgba(255,255,255,.1)' : (isOlt ? '#64a0ff' : (isCrit ? '#ff4757' : '#f5a623'));
+  return `<td><div class="sig-wrap">
+    <span class="sig-num ${cls}">${sig.toFixed(3)}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct(sig)}%;background:${bar}"></div></div>
+  </div></td>`;
+}
+
+function updateStats() {
+  document.getElementById('s-warn').textContent = RAW.filter(r=>r.status==='Warning' && !resolved.has(r.onu)).length;
+  document.getElementById('s-crit').textContent = RAW.filter(r=>r.status==='Critical'&& !resolved.has(r.onu)).length;
+  document.getElementById('s-ok').textContent   = resolved.size;
+}
+
+function render() {
+  const fOlt    = document.getElementById('f-olt').value;
+  const fStatus = document.getElementById('f-status').value;
+  const fSearch = document.getElementById('f-search').value.toLowerCase().trim();
+
+  let data = RAW.filter(r => {
+    const isRes = resolved.has(r.onu);
+    if (fOlt && r.olt !== fOlt) return false;
+    if (fStatus === 'Resolvido' && !isRes) return false;
+    if (fStatus === 'Critical'  && (isRes || r.status !== 'Critical')) return false;
+    if (fStatus === 'Warning'   && (isRes || r.status !== 'Warning'))  return false;
+    if (fSearch && !(r.name+r.onu+r.mac).toLowerCase().includes(fSearch)) return false;
+    return true;
+  });
+
+  data.sort((a, b) => {
+    const ar = resolved.has(a.onu), br = resolved.has(b.onu);
+    if (ar !== br) return ar ? 1 : -1;
+    let av = a[sortCol], bv = b[sortCol];
+    if (typeof av === 'number' || av === null) {
+      if (av===null && bv===null) return 0;
+      if (av===null) return 1; if (bv===null) return -1;
+      return sortDir==='asc' ? av-bv : bv-av;
+    }
+    av=(av||'').toLowerCase(); bv=(bv||'').toLowerCase();
+    return sortDir==='asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
+
+  document.getElementById('rec-count').textContent = data.length + ' de ' + RAW.length + ' registros';
+
+  const tb = document.getElementById('tbody');
+  if (!data.length) {
+    tb.innerHTML = `<tr><td colspan="12" class="no-results"><span>🔍</span>Nenhum registro encontrado</td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = data.map((r,i) => {
+    const isRes  = resolved.has(r.onu);
+    const isCrit = r.status === 'Critical';
+    const rowCls = isRes ? 'ok-row' : (isCrit ? 'crit-row' : 'warn-row');
+    const bdgCls = isRes ? 'ok'   : (isCrit ? 'crit' : 'warn');
+    const bdgTxt = isRes ? '✓ Resolvido' : r.status;
+    const btn    = isRes
+      ? `<button class="btn btn-unresolve" onclick="toggle('${r.onu}')">↩ Reabrir</button>`
+      : `<button class="btn btn-resolve"   onclick="toggle('${r.onu}')">✓ Resolver</button>`;
+    return `<tr class="${rowCls}">
+      <td class="rank-cell">${i+1}</td>
+      ${sigCell(r.sig1490, isCrit, false, isRes)}
+      ${sigCell(r.sig1310, isCrit, true,  isRes)}
+      <td><span class="badge ${bdgCls}">${bdgTxt}</span></td>
+      <td class="name-cell" title="${r.name}">${r.name}</td>
+      <td class="mono">${r.olt}</td>
+      <td class="mono">${r.onu}</td>
+      <td class="mono">${r.zone}</td>
+      <td class="mono">${r.mac||'—'}</td>
+      <td class="mono">${r.vlan}</td>
+      <td class="mono">${r.type}</td>
+      <td>${btn}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggle(onu) {
+  resolved.has(onu) ? resolved.delete(onu) : resolved.add(onu);
+  save(); updateStats(); render();
+}
+
+document.querySelectorAll('thead th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    sortDir = sortCol===col ? (sortDir==='asc'?'desc':'asc') : 'asc';
+    sortCol = col;
+    document.querySelectorAll('thead th').forEach(h => {
+      h.classList.remove('sorted');
+      const si = h.querySelector('.si'); if(si) si.textContent='⇅';
+    });
+    th.classList.add('sorted');
+    const si = th.querySelector('.si'); if(si) si.textContent = sortDir==='asc'?'▲':'▼';
+    render();
+  });
+});
+
+['f-olt','f-status'].forEach(id => document.getElementById(id).addEventListener('change', render));
+document.getElementById('f-search').addEventListener('input', render);
+updateStats(); render();
+</script>
+</body>
+</html>
